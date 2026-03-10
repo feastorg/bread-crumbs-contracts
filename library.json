@@ -1,0 +1,31 @@
+{
+  "name": "bread-crumbs-contracts",
+  "version": "0.1.0",
+  "description": "Header-only CRUMBS operation contracts for the BREAD Slice family",
+  "keywords": [
+    "crumbs",
+    "i2c",
+    "bread",
+    "contracts",
+    "header-only"
+  ],
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/FEASTorg/bread-crumbs-contracts.git"
+  },
+  "license": "AGPL-3.0-or-later",
+  "frameworks": "*",
+  "platforms": "*",
+  "headers": [
+    "bread/bread_ops.h"
+  ],
+  "build": {
+    "includeDir": "include"
+  },
+  "dependencies": [
+    {
+      "name": "cameronbrooks11/CRUMBS",
+      "version": "^0.11.0"
+    }
+  ]
+}

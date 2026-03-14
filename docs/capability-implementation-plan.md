@@ -10,16 +10,15 @@ Define the full path from current state to a stable long-term BREAD contract arc
 - minimal break risk during rollout.
 
 This plan is execution-focused and intended to be followed in order.
+As of the `0.2.0` cutover, Phases 0-4 for DCMT/RLHT are implemented; this document remains as the long-term reference pattern for future slices.
 
 ## Current State (As-Is)
 
-- Contracts repo has canonical per-device headers (`dcmt_ops.h`, `rlht_ops.h`).
-- Generation wrapper headers exist (`gen1/*`, `gen2/*`) and currently alias top-level headers.
-- Version query (`opcode 0x00`) is in place and used.
-- No standardized capability query exists yet.
-- DCMT supports multiple behavior profiles in firmware (open-only vs closed-capable).
-- RLHT is currently wire-stable across Gen1/Gen2 behavior.
-- Discovery/manual controller examples exist but do not gate behavior via capability metadata yet.
+- Contracts repo has canonical per-device headers (`dcmt_ops.h`, `rlht_ops.h`) plus shared capability helpers (`bread_caps.h`).
+- Public generation-scoped include wrappers are removed from the contract surface.
+- Version query (`opcode 0x00`) and standardized capability query (`BREAD_OP_GET_CAPS`) are in place.
+- DCMT and RLHT firmware implement caps replies with additive level/flags mapping.
+- Discovery/manual controller examples query and display caps and gate advanced commands by capability flags.
 
 ## Desired End State (To-Be)
 

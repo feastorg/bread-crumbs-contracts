@@ -2,6 +2,10 @@
 
 ## [Unreleased]
 
+No unreleased changes yet.
+
+## [0.2.0] - 2026-03-14
+
 ### Added
 
 - Shared capability contract header: `include/bread/bread_caps.h`.
@@ -10,6 +14,13 @@
   - `rlht_query_caps` / `rlht_get_caps`
 - Capability constants for DCMT and RLHT (levels + flags).
 - Controller examples now expose `caps` commands and capability-aware command gating.
+
+### Breaking
+
+- Removed generation-scoped include paths from the public API:
+  - `include/bread/gen1/*`
+  - `include/bread/gen2/*`
+  - `include/bread/gen3/*`
 
 ### Changed
 
@@ -20,23 +31,6 @@
   - `dcmt_ops.h`
   - `rlht_ops.h`
 - README and docs aligned to capability-first model.
-
-### Removed
-
-- Generation-scoped public contract include tree:
-  - `include/bread/gen1/*`
-  - `include/bread/gen2/*`
-  - `include/bread/gen3/*`
-
-## [0.2.0] - 2026-03-14
-
-### Added
-
-- Capability-oriented contract rollout and generation-free header surface.
-
-### Breaking
-
-- Removed generation-scoped include paths from the public API.
 
 ## [0.1.0] - 2026-03-10
 

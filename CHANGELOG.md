@@ -2,7 +2,16 @@
 
 ## [Unreleased]
 
-No unreleased changes yet.
+### Changed
+
+- Replaced docs set with canonical, task-oriented names and rewritten content:
+  - `docs/overview.md`
+  - `docs/contract-model.md`
+  - `docs/capabilities.md`
+  - `docs/controller-compatibility.md`
+  - `docs/type-ids.md`
+  - `docs/protocol-versioning.md`
+- Removed legacy planning/policy doc names from `docs/` and aligned README links/layout.
 
 ## [0.2.0] - 2026-03-14
 
@@ -43,8 +52,5 @@ No unreleased changes yet.
   - `dcmt_ops.h`
   - `rlht_ops.h`
 - Shared version parse and compatibility helpers.
-- Governance docs:
-  - `docs/versioning.md`
-  - `docs/type-id-registry.md`
-  - `docs/compatibility.md`
+- Governance docs for versioning, type IDs, and compatibility policy.
 - Package metadata for PlatformIO/Arduino/CMake consumers.

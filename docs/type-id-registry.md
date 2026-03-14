@@ -1,14 +1,26 @@
-# BREAD Type ID Registry
+# Type ID Registry
 
-Reserved and assigned CRUMBS device type IDs for BREAD family contracts.
+Type IDs identify device contract lines.
 
-## Assigned
+## Allocations
 
-- `0x01` RLHT
-- `0x02` DCMT
+- `0x01` -> RLHT
+- `0x02` -> DCMT
 
-## Reserved Guidance
+## Policy
 
-- Keep IDs unique and permanent once released.
-- Never repurpose a released type ID for a different device class.
-- Document newly assigned IDs in this file as part of any contract PR.
+- Keep type IDs globally unique across this repository.
+- Hardware generation labels are not a reason to assign a new type ID by themselves.
+- Additive capability differences stay under the same type ID.
+
+Assign a new type ID only for true wire-breaking divergence:
+
+- incompatible opcode semantics,
+- payload byte reinterpretation,
+- non-additive protocol behavior.
+
+When assigning a new ID:
+
+- document it here,
+- freeze old line behavior,
+- document migration path.

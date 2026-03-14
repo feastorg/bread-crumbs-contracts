@@ -1,24 +1,31 @@
-# Compatibility Guidance
+# Compatibility Checklist
 
-## Controller Startup Flow
+Controller-side compatibility flow for BREAD slices:
 
-Recommended per-device startup checks:
+1. Query version (`opcode 0x00`).
+2. Parse with shared version helpers.
+3. Query capabilities (`BREAD_OP_GET_CAPS`).
+4. Gate all non-baseline behavior by capability flags.
 
-1. Query opcode `0x00` (version reply).
-2. Parse payload using `bread_parse_version()`.
-3. Enforce minimum CRUMBS compatibility using `bread_check_crumbs_compat()`.
-4. Enforce module compatibility using `bread_check_module_compat()` against the compiled header expectation.
+## Required Behavior
 
-## Compatibility Rule
+Controllers should:
 
-- Module MAJOR must match exactly.
-- Peripheral module MINOR should be >= controller expected MINOR.
-- Module PATCH is ignored for protocol compatibility.
+- reject incompatible major version mismatches,
+- allow compatible newer minor versions,
+- assume baseline caps if `GET_CAPS` is unavailable (legacy fallback),
+- avoid sending unsupported commands,
+- degrade gracefully with clear unsupported-feature errors.
 
-## Failure Handling
+## Legacy Fallback
 
-On incompatibility, controller should:
+If `GET_CAPS` is unsupported/timeout:
 
-- mark device unavailable for normal operation,
-- log mismatch details (type ID, observed versions, expected versions),
-- avoid issuing state-changing commands to that device.
+- treat device as baseline capability profile for its type,
+- do not assume advanced features,
+- continue with safe operations only.
+
+## Breaking Change Rule
+
+If firmware changes semantics of existing opcodes/payload bytes, compatibility is broken.
+That requires MAJOR bump and/or new type contract line.

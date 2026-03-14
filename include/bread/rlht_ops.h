@@ -3,6 +3,7 @@
 
 #include "crumbs.h"
 #include "crumbs_message_helpers.h"
+#include "bread_caps.h"
 
 #ifdef __cplusplus
 extern "C"
@@ -31,6 +32,21 @@ extern "C"
 #define RLHT_FLAG_RELAY1_ON 0x02
 #define RLHT_FLAG_RELAY2_ON 0x04
 
+#define RLHT_CAP_LEVEL_1 0x01
+#define RLHT_CAP_LEVEL_2 0x02
+#define RLHT_CAP_LEVEL_3 0x03
+
+#define RLHT_CAP_MODE_CONTROL ((uint32_t)1u << 0)
+#define RLHT_CAP_SETPOINT_CONTROL ((uint32_t)1u << 1)
+#define RLHT_CAP_PID_TUNING ((uint32_t)1u << 2)
+#define RLHT_CAP_PERIOD_CONTROL ((uint32_t)1u << 3)
+#define RLHT_CAP_TC_SELECT ((uint32_t)1u << 4)
+#define RLHT_CAP_OPEN_DUTY_CONTROL ((uint32_t)1u << 5)
+
+#define RLHT_CAP_BASELINE_FLAGS (RLHT_CAP_MODE_CONTROL | RLHT_CAP_SETPOINT_CONTROL | \
+                                 RLHT_CAP_PID_TUNING | RLHT_CAP_PERIOD_CONTROL | \
+                                 RLHT_CAP_TC_SELECT | RLHT_CAP_OPEN_DUTY_CONTROL)
+
 typedef struct
 {
     uint8_t mode;
@@ -55,6 +71,13 @@ typedef struct
     uint8_t fw_minor;
     uint8_t fw_patch;
 } rlht_version_result_t;
+
+typedef struct
+{
+    uint8_t schema;
+    uint8_t level;
+    uint32_t flags;
+} rlht_caps_result_t;
 
 static inline int rlht_validate_write_device(const crumbs_device_t *dev)
 {
@@ -163,6 +186,16 @@ static inline int rlht_query_version(const crumbs_device_t *dev)
     return crumbs_controller_send(dev->ctx, dev->addr, &msg, dev->write_fn, dev->io);
 }
 
+static inline int rlht_query_caps(const crumbs_device_t *dev)
+{
+    crumbs_message_t msg;
+    if (rlht_validate_write_device(dev) != 0)
+        return -1;
+    crumbs_msg_init(&msg, 0, CRUMBS_CMD_SET_REPLY);
+    crumbs_msg_add_u8(&msg, BREAD_OP_GET_CAPS);
+    return crumbs_controller_send(dev->ctx, dev->addr, &msg, dev->write_fn, dev->io);
+}
+
 static inline int rlht_get_state(const crumbs_device_t *dev, rlht_state_result_t *out)
 {
     crumbs_message_t reply;
@@ -254,6 +287,38 @@ static inline int rlht_get_version(const crumbs_device_t *dev, rlht_version_resu
     if (rc != 0)
         return rc;
     return crumbs_msg_read_u8(reply.data, reply.data_len, 4, &out->fw_patch);
+}
+
+static inline int rlht_get_caps(const crumbs_device_t *dev, rlht_caps_result_t *out)
+{
+    crumbs_message_t reply;
+    bread_caps_result_t parsed;
+    int rc;
+
+    if (!out || rlht_validate_query_device(dev) != 0)
+        return -1;
+
+    rc = rlht_query_caps(dev);
+    if (rc != 0)
+        return rc;
+
+    dev->delay_fn(CRUMBS_DEFAULT_QUERY_DELAY_US);
+
+    rc = crumbs_controller_read(dev->ctx, dev->addr, &reply, dev->read_fn, dev->io);
+    if (rc != 0)
+        return rc;
+
+    if (reply.type_id != RLHT_TYPE_ID || reply.opcode != BREAD_OP_GET_CAPS)
+        return -1;
+
+    rc = bread_caps_parse_payload(reply.data, reply.data_len, &parsed);
+    if (rc != 0)
+        return rc;
+
+    out->schema = parsed.schema;
+    out->level = parsed.level;
+    out->flags = parsed.flags;
+    return 0;
 }
 
 #ifdef __cplusplus

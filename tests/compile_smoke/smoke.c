@@ -6,6 +6,9 @@ int bread_contracts_smoke(void)
 
     ok += (RLHT_TYPE_ID == 0x01) ? 0 : 1;
     ok += (DCMT_TYPE_ID == 0x02) ? 0 : 1;
+    ok += (BREAD_OP_GET_CAPS == 0x7F) ? 0 : 1;
+    ok += (DCMT_CAP_BASELINE_FLAGS != 0u) ? 0 : 1;
+    ok += (RLHT_CAP_BASELINE_FLAGS != 0u) ? 0 : 1;
 
     ok += (bread_check_crumbs_compat((uint16_t)BREAD_MIN_CRUMBS_VERSION) == 0) ? 0 : 1;
     ok += (bread_check_module_compat(1, 2, 1, 1) == 0) ? 0 : 1;

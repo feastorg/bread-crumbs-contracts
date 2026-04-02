@@ -1,6 +1,6 @@
 {
   "name": "bread-crumbs-contracts",
-  "version": "0.4.0",
+  "version": "0.4.1",
   "description": "Header-only CRUMBS operation contracts for the BREAD Slice family",
   "keywords": [
     "crumbs",

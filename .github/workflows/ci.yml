@@ -1,0 +1,56 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  cmake-package-smoke:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install CRUMBS from release
+        run: |
+          mkdir -p _deps/crumbs-install
+          curl -fsSL https://github.com/feastorg/CRUMBS/releases/download/v0.12.1/crumbs-0.12.1-linux-x86_64.tar.gz \
+            | tar -xz -C _deps/crumbs-install
+
+      - name: Build and install bread-crumbs-contracts package
+        run: |
+          cmake -S . -B build/contracts \
+            -DCMAKE_BUILD_TYPE=Release \
+            -DCMAKE_PREFIX_PATH="$PWD/_deps/crumbs-install" \
+            -DCMAKE_INSTALL_PREFIX="$PWD/stage"
+          cmake --build build/contracts --config Release --parallel
+          cmake --install build/contracts
+
+      - name: Consumer smoke test with find_package()
+        run: |
+          mkdir -p build/smoke
+          cat > build/smoke/CMakeLists.txt <<'EOF'
+          cmake_minimum_required(VERSION 3.14)
+          project(bread_contracts_smoke C)
+          find_package(breadCrumbsContracts 0.4 CONFIG REQUIRED)
+          add_executable(smoke main.c)
+          target_link_libraries(smoke PRIVATE bread::contracts)
+          EOF
+          cat > build/smoke/main.c <<'EOF'
+          #include <bread/bread_ops.h>
+          #include <bread/bread_caps.h>
+
+          int main(void) {
+              return 0;
+          }
+          EOF
+          cmake -S build/smoke -B build/smoke/out \
+            -DCMAKE_BUILD_TYPE=Release \
+            -DCMAKE_PREFIX_PATH="$PWD/_deps/crumbs-install;$PWD/stage"
+          cmake --build build/smoke/out --config Release --parallel

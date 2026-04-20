@@ -1,2 +1,14 @@
 @PACKAGE_INIT@
+include(CMakeFindDependencyMacro)
+find_dependency(crumbs CONFIG REQUIRED)
 include("${CMAKE_CURRENT_LIST_DIR}/breadCrumbsContractsTargets.cmake")
+
+if(NOT TARGET bread::contracts AND TARGET bread::bread_crumbs_contracts)
+    add_library(bread::contracts INTERFACE IMPORTED)
+    set_property(
+        TARGET bread::contracts
+        PROPERTY INTERFACE_LINK_LIBRARIES bread::bread_crumbs_contracts
+    )
+endif()
+
+check_required_components(breadCrumbsContracts)

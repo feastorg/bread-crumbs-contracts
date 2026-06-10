@@ -60,3 +60,18 @@ jobs:
             -DCMAKE_BUILD_TYPE=Release \
             -DCMAKE_PREFIX_PATH="$PWD/_deps/linux-wire-install;$PWD/_deps/crumbs-install;$PWD/stage"
           cmake --build build/smoke/out --config Release --parallel
+
+  # ─── Unified gate ─────────────────────────────────────────────
+  # Branch protection requires only: CI / ok
+  ok:
+    name: ok
+    if: always()
+    needs: [cmake-package-smoke]
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Fail if any upstream job failed or was cancelled
+        if: contains(needs.*.result, 'failure') || contains(needs.*.result, 'cancelled')
+        run: exit 1
+      - name: Pass
+        run: echo 'All checks passed or were skipped'

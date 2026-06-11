@@ -32,22 +32,22 @@ Publication/readiness cleanup items found during CRUMBS paper review.
   - `library.json` currently reports `0.4.1`.
   - `library.properties` currently reports `0.4.1`.
 
-- [ ] Update CRUMBS dependency references.
-  - CI/release currently fetch CRUMBS `0.12.1`.
-  - Current CRUMBS release is `0.12.4`.
-  - Confirm desired minimum supported CRUMBS version for contracts before changing package dependency ranges.
+- [x] Update CRUMBS dependency references.
+  - CI/release fetch CRUMBS `0.12.4`.
+  - Package dependency ranges remain at `^0.12.0` because the public contracts still intentionally support the CRUMBS `0.12.x` line.
 
-- [ ] Check whether `BREAD_MIN_CRUMBS_VERSION` should remain `1200` or move to a newer minimum.
+- [x] Check whether `BREAD_MIN_CRUMBS_VERSION` should remain `1200` or move to a newer minimum.
   - Keep at `1200` only if all public contracts intentionally support CRUMBS `0.12.0+`.
   - Raise only if contracts rely on newer CRUMBS API/behavior.
+  - Current decision: keep `1200`.
 
 ## Supply Chain / Release Hardening
 
-- [ ] Replace unchecked `curl | tar` dependency installs in CI with download + SHA256 verification.
+- [x] Replace unchecked `curl | tar` dependency installs in CI with download + SHA256 verification.
   - linux-wire release artifact.
   - CRUMBS release artifact.
 
-- [ ] Update release workflow dependency fetches to match CI after CRUMBS/linux-wire versions are confirmed.
+- [x] Update release workflow dependency fetches to match CI after CRUMBS/linux-wire versions are confirmed.
 
 - [ ] Consider adding a core package consumer smoke test that uses installed `bread::contracts`.
   - Build from installed bread-crumbs-contracts, installed CRUMBS, and installed linux-wire.

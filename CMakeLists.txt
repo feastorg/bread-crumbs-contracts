@@ -1,6 +1,14 @@
 cmake_minimum_required(VERSION 3.14)
 project(bread_crumbs_contracts VERSION 0.4.2 LANGUAGES C)
 
+if(CMAKE_CURRENT_SOURCE_DIR STREQUAL CMAKE_SOURCE_DIR)
+    set(BREAD_CONTRACTS_TOP_LEVEL ON)
+else()
+    set(BREAD_CONTRACTS_TOP_LEVEL OFF)
+endif()
+
+option(BREAD_CONTRACTS_BUILD_TESTS "Build bread-crumbs-contracts test targets" ${BREAD_CONTRACTS_TOP_LEVEL})
+
 if(NOT TARGET crumbs AND NOT TARGET crumbs::crumbs)
     find_package(crumbs CONFIG REQUIRED)
 endif()
@@ -14,6 +22,17 @@ target_include_directories(bread_crumbs_contracts INTERFACE
 )
 
 target_link_libraries(bread_crumbs_contracts INTERFACE crumbs::crumbs)
+
+if(BREAD_CONTRACTS_BUILD_TESTS)
+    include(CTest)
+
+    add_executable(bread_contracts_compile_smoke tests/compile_smoke/smoke.c)
+    target_link_libraries(bread_contracts_compile_smoke PRIVATE bread::contracts)
+
+    if(BUILD_TESTING)
+        add_test(NAME bread_contracts_compile_smoke COMMAND bread_contracts_compile_smoke)
+    endif()
+endif()
 
 install(DIRECTORY include/ DESTINATION include)
 install(TARGETS bread_crumbs_contracts EXPORT breadCrumbsContractsTargets)

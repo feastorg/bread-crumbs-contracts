@@ -16,3 +16,8 @@ int bread_contracts_smoke(void)
 
     return ok;
 }
+
+int main(void)
+{
+    return bread_contracts_smoke();
+}

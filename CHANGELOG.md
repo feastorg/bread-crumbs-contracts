@@ -2,6 +2,11 @@
 
 ## [Unreleased]
 
+### Added
+
+- Added a tracked installed-package consumer smoke fixture and wired CI to use
+  it after installing `bread-crumbs-contracts`, CRUMBS, and linux-wire.
+
 ## [0.4.3] - 2026-06-11
 
 ### Fixed

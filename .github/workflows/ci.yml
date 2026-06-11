@@ -36,6 +36,7 @@ jobs:
             -DCMAKE_PREFIX_PATH="$PWD/_deps/linux-wire-install;$PWD/_deps/crumbs-install" \
             -DCMAKE_INSTALL_PREFIX="$PWD/stage"
           cmake --build build/contracts --config Release --parallel
+          ctest --test-dir build/contracts --output-on-failure
           cmake --install build/contracts
 
       - name: Consumer smoke test with find_package()
@@ -60,6 +61,22 @@ jobs:
             -DCMAKE_BUILD_TYPE=Release \
             -DCMAKE_PREFIX_PATH="$PWD/_deps/linux-wire-install;$PWD/_deps/crumbs-install;$PWD/stage"
           cmake --build build/smoke/out --config Release --parallel
+
+      - name: Build controller discovery example
+        run: |
+          cmake -S examples/controller_discovery -B build/controller_discovery \
+            -DCMAKE_BUILD_TYPE=Release \
+            -DCRUMBS_BUILD_IN_TREE=OFF \
+            -DCMAKE_PREFIX_PATH="$PWD/_deps/linux-wire-install;$PWD/_deps/crumbs-install"
+          cmake --build build/controller_discovery --config Release --parallel
+
+      - name: Build controller manual example
+        run: |
+          cmake -S examples/controller_manual -B build/controller_manual \
+            -DCMAKE_BUILD_TYPE=Release \
+            -DCRUMBS_BUILD_IN_TREE=OFF \
+            -DCMAKE_PREFIX_PATH="$PWD/_deps/linux-wire-install;$PWD/_deps/crumbs-install"
+          cmake --build build/controller_manual --config Release --parallel
 
   # ─── Unified gate ─────────────────────────────────────────────
   # Branch protection requires only: CI / ok

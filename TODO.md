@@ -4,7 +4,7 @@ Publication/readiness cleanup items found during CRUMBS paper review.
 
 ## Build and CI
 
-- [ ] Fix `examples/controller_discovery` DCMT state printing after the `0.4.0` state-contract change.
+- [x] Fix `examples/controller_discovery` DCMT state printing after the `0.4.0` state-contract change.
   - Replace stale `target1`, `target2`, `value1`, `value2` references with current explicit fields:
     - `m1_pwm`, `m2_pwm`
     - `sp1`, `sp2`
@@ -12,15 +12,15 @@ Publication/readiness cleanup items found during CRUMBS paper review.
     - `spd1`, `spd2`
   - Use `BREAD_IS_VALID_I16()` before printing sentinel-eligible fields.
 
-- [ ] Fix `examples/controller_manual` DCMT state printing after the `0.4.0` state-contract change.
+- [x] Fix `examples/controller_manual` DCMT state printing after the `0.4.0` state-contract change.
   - Same field update and sentinel handling as `controller_discovery`.
 
-- [ ] Add CI coverage for bundled Linux controller examples.
+- [x] Add CI coverage for bundled Linux controller examples.
   - Build `examples/controller_discovery`.
   - Build `examples/controller_manual`.
   - Ensure CI catches future contract/example drift.
 
-- [ ] Add or promote a real compile/link smoke target for `tests/compile_smoke/smoke.c`.
+- [x] Add or promote a real compile/link smoke target for `tests/compile_smoke/smoke.c`.
   - Current CI uses an inline smoke consumer.
   - Prefer reusing the tracked smoke source so repository tests and CI validate the same artifact.
 

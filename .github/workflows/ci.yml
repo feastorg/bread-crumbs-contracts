@@ -50,26 +50,11 @@ jobs:
 
       - name: Consumer smoke test with find_package()
         run: |
-          mkdir -p build/smoke
-          cat > build/smoke/CMakeLists.txt <<'EOF'
-          cmake_minimum_required(VERSION 3.14)
-          project(bread_contracts_smoke C)
-          find_package(breadCrumbsContracts 0.4 CONFIG REQUIRED)
-          add_executable(smoke main.c)
-          target_link_libraries(smoke PRIVATE bread::contracts)
-          EOF
-          cat > build/smoke/main.c <<'EOF'
-          #include <bread/bread_ops.h>
-          #include <bread/bread_caps.h>
-
-          int main(void) {
-              return 0;
-          }
-          EOF
-          cmake -S build/smoke -B build/smoke/out \
+          cmake -S tests/installed_package_consumer -B build/installed_package_consumer \
             -DCMAKE_BUILD_TYPE=Release \
             -DCMAKE_PREFIX_PATH="$PWD/_deps/linux-wire-install;$PWD/_deps/crumbs-install;$PWD/stage"
-          cmake --build build/smoke/out --config Release --parallel
+          cmake --build build/installed_package_consumer --config Release --parallel
+          ctest --test-dir build/installed_package_consumer --output-on-failure
 
       - name: Build controller discovery example
         run: |

@@ -2,6 +2,25 @@
 
 ## [Unreleased]
 
+## [0.4.3] - 2026-06-11
+
+### Fixed
+
+- Updated bundled Linux controller examples to print the current fixed-layout DCMT state fields (`m1_pwm`, `m2_pwm`, `sp1`, `sp2`, `pos1`, `pos2`, `spd1`, `spd2`) instead of removed `target1`, `target2`, `value1`, and `value2` fields.
+- Display sentinel-only DCMT state fields as `n/a` in controller examples when they contain `BREAD_INVALID_I16`.
+- Aligned CMake, PlatformIO, and Arduino package metadata on version `0.4.3`.
+
+### Added
+
+- Added a tracked compile/link smoke target for `tests/compile_smoke/smoke.c`.
+- Added CI coverage for both bundled Linux controller examples.
+
+### Changed
+
+- CI and release workflows now verify linux-wire and CRUMBS release artifact checksums before extraction.
+- CI and release workflows now build against CRUMBS `0.12.4` while keeping the public package dependency range at `^0.12.0`.
+- Release workflow now runs the compile/link smoke test before packaging.
+
 ## [0.4.2] - 2026-04-20
 
 ### Fixed

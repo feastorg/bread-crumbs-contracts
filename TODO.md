@@ -26,11 +26,8 @@ Publication/readiness cleanup items found during CRUMBS paper review.
 
 ## Version and Release Metadata
 
-- [ ] Align version metadata.
-  - `CMakeLists.txt` currently reports `0.4.2`.
-  - `CHANGELOG.md` contains `0.4.2`.
-  - `library.json` currently reports `0.4.1`.
-  - `library.properties` currently reports `0.4.1`.
+- [x] Align version metadata.
+  - `CMakeLists.txt`, `CHANGELOG.md`, `library.json`, and `library.properties` now report `0.4.3`.
 
 - [x] Update CRUMBS dependency references.
   - CI/release fetch CRUMBS `0.12.4`.

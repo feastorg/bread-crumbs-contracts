@@ -112,6 +112,15 @@ static const char *dcmt_mode_name(uint8_t mode)
     return "unknown";
 }
 
+static const char *format_i16_or_na(int16_t value, char *buf, size_t n)
+{
+    if (!BREAD_IS_VALID_I16(value))
+        return "n/a";
+
+    snprintf(buf, n, "%d", (int)value);
+    return buf;
+}
+
 static const char *rlht_mode_name(uint8_t mode)
 {
     if (mode == RLHT_MODE_CLOSED_LOOP)
@@ -631,13 +640,22 @@ static int cmd_dcmt(const device_info_t *info, const char *rest)
     if (strcmp(sub, "state") == 0)
     {
         dcmt_state_result_t s;
+        char sp1[8];
+        char sp2[8];
+        char spd1[8];
+        char spd2[8];
         rc = dcmt_get_state(dev, &s);
         if (rc != 0)
             return rc;
 
-        printf("DCMT state: mode=%s t1=%d t2=%d v1=%d v2=%d brakes=0x%02X estop=%u\n",
+        printf("DCMT state: mode=%s m1_pwm=%d m2_pwm=%d sp1=%s sp2=%s pos1=%d pos2=%d spd1=%s spd2=%s brakes=0x%02X estop=%u\n",
                dcmt_mode_name(s.mode),
-               s.target1, s.target2, s.value1, s.value2,
+               (int)s.m1_pwm, (int)s.m2_pwm,
+               format_i16_or_na(s.sp1, sp1, sizeof(sp1)),
+               format_i16_or_na(s.sp2, sp2, sizeof(sp2)),
+               (int)s.pos1, (int)s.pos2,
+               format_i16_or_na(s.spd1, spd1, sizeof(spd1)),
+               format_i16_or_na(s.spd2, spd2, sizeof(spd2)),
                s.brakes, s.estop);
         return 0;
     }

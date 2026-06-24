@@ -19,7 +19,7 @@ jobs:
       CRUMBS_SHA256: "fbdad6d561b46ec95aa55d8b59fbf9f9ce770885c4601eee75852b14e33f424b"
 
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
 
       - name: Install build tools
         run: sudo apt-get update && sudo apt-get install -y cmake ninja-build build-essential jq

@@ -1,6 +1,6 @@
 # bread-crumbs-contracts
 
-Header-only CRUMBS operation contracts for the BREAD Slice family.
+Header-only CRUMBS operation contracts for BREADS-compatible Slices.
 
 This repository is the single source of truth for BREAD wire contracts used by:
 

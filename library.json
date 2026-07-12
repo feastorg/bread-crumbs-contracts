@@ -1,7 +1,7 @@
 {
   "name": "bread-crumbs-contracts",
   "version": "0.4.3",
-  "description": "Header-only CRUMBS operation contracts for the BREAD Slice family",
+  "description": "Header-only CRUMBS operation contracts for BREADS-compatible Slices",
   "keywords": [
     "crumbs",
     "i2c",

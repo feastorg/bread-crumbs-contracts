@@ -31,7 +31,7 @@ extern "C"
 #define BREAD_IS_VALID_I16(v) ((int16_t)(v) != BREAD_INVALID_I16)
 #define BREAD_IS_VALID_U8(v)  ((uint8_t)(v) != BREAD_INVALID_U8)
 
-/* Shared capability query opcode across BREAD slices. */
+/* Shared capability query opcode across BREADS-compatible Slices. */
 #define BREAD_OP_GET_CAPS 0x7F
 
 /* Capability payload schema version. */

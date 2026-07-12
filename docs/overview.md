@@ -1,6 +1,6 @@
 # BREAD Contracts Docs
 
-This documentation describes the public wire-contract model for BREAD slices.
+This documentation describes the public wire-contract model for BREADS-compatible Slices.
 
 ## Scope
 

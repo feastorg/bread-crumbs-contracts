@@ -2,6 +2,8 @@
 
 ## [Unreleased]
 
+## [0.4.4] - 2026-07-14
+
 ### Added
 
 - Added a tracked installed-package consumer smoke fixture and wired CI to use

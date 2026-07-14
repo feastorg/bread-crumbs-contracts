@@ -6,6 +6,14 @@
 
 - Added a tracked installed-package consumer smoke fixture and wired CI to use
   it after installing `bread-crumbs-contracts`, CRUMBS, and linux-wire.
+- Added `dcmt_parse_state_payload()` and `rlht_parse_state_payload()`, the
+  GET_STATE payload parsers previously inlined in `dcmt_get_state()` /
+  `rlht_get_state()`. Controllers that run the query round-trip through their
+  own transport (retry, locking, configurable delay) can now parse replies
+  through the contracts instead of duplicating the wire layout. The `_get_*`
+  round-trip helpers delegate to the new parsers with no behavior change.
+- Extended the compile smoke test to exercise both state parsers at runtime
+  (valid payload round-trip, short-payload and NULL rejection).
 
 ## [0.4.3] - 2026-06-11
 

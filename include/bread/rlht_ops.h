@@ -196,6 +196,57 @@ static inline int rlht_query_caps(const crumbs_device_t *dev)
     return crumbs_controller_send(dev->ctx, dev->addr, &msg, dev->write_fn, dev->io);
 }
 
+/*
+ * Parse an RLHT GET_STATE payload into a state result. Shared by
+ * rlht_get_state() and by controllers that run the query round-trip through
+ * their own transport (retry/locking/timing) and only need the wire layout.
+ */
+static inline int rlht_parse_state_payload(const uint8_t *data, uint8_t data_len, rlht_state_result_t *out)
+{
+    int rc;
+
+    if (!data || !out)
+        return -1;
+
+    rc = crumbs_msg_read_u8(data, data_len, 0, &out->mode);
+    if (rc != 0)
+        return rc;
+    rc = crumbs_msg_read_u8(data, data_len, 1, &out->flags);
+    if (rc != 0)
+        return rc;
+    rc = crumbs_msg_read_i16(data, data_len, 2, &out->t1_deci_c);
+    if (rc != 0)
+        return rc;
+    rc = crumbs_msg_read_i16(data, data_len, 4, &out->t2_deci_c);
+    if (rc != 0)
+        return rc;
+    rc = crumbs_msg_read_i16(data, data_len, 6, &out->sp1_deci_c);
+    if (rc != 0)
+        return rc;
+    rc = crumbs_msg_read_i16(data, data_len, 8, &out->sp2_deci_c);
+    if (rc != 0)
+        return rc;
+    rc = crumbs_msg_read_u16(data, data_len, 10, &out->on1_ms);
+    if (rc != 0)
+        return rc;
+    rc = crumbs_msg_read_u16(data, data_len, 12, &out->on2_ms);
+    if (rc != 0)
+        return rc;
+    rc = crumbs_msg_read_u16(data, data_len, 14, &out->period1_ms);
+    if (rc != 0)
+        return rc;
+    rc = crumbs_msg_read_u16(data, data_len, 16, &out->period2_ms);
+    if (rc != 0)
+        return rc;
+    rc = crumbs_msg_read_u8(data, data_len, 18, &out->tc_select);
+    if (rc != 0)
+        return rc;
+
+    out->tc1 = (uint8_t)(out->tc_select & 0x03);
+    out->tc2 = (uint8_t)((out->tc_select >> 2) & 0x03);
+    return 0;
+}
+
 static inline int rlht_get_state(const crumbs_device_t *dev, rlht_state_result_t *out)
 {
     crumbs_message_t reply;
@@ -217,43 +268,7 @@ static inline int rlht_get_state(const crumbs_device_t *dev, rlht_state_result_t
     if (reply.type_id != RLHT_TYPE_ID || reply.opcode != RLHT_OP_GET_STATE)
         return -1;
 
-    rc = crumbs_msg_read_u8(reply.data, reply.data_len, 0, &out->mode);
-    if (rc != 0)
-        return rc;
-    rc = crumbs_msg_read_u8(reply.data, reply.data_len, 1, &out->flags);
-    if (rc != 0)
-        return rc;
-    rc = crumbs_msg_read_i16(reply.data, reply.data_len, 2, &out->t1_deci_c);
-    if (rc != 0)
-        return rc;
-    rc = crumbs_msg_read_i16(reply.data, reply.data_len, 4, &out->t2_deci_c);
-    if (rc != 0)
-        return rc;
-    rc = crumbs_msg_read_i16(reply.data, reply.data_len, 6, &out->sp1_deci_c);
-    if (rc != 0)
-        return rc;
-    rc = crumbs_msg_read_i16(reply.data, reply.data_len, 8, &out->sp2_deci_c);
-    if (rc != 0)
-        return rc;
-    rc = crumbs_msg_read_u16(reply.data, reply.data_len, 10, &out->on1_ms);
-    if (rc != 0)
-        return rc;
-    rc = crumbs_msg_read_u16(reply.data, reply.data_len, 12, &out->on2_ms);
-    if (rc != 0)
-        return rc;
-    rc = crumbs_msg_read_u16(reply.data, reply.data_len, 14, &out->period1_ms);
-    if (rc != 0)
-        return rc;
-    rc = crumbs_msg_read_u16(reply.data, reply.data_len, 16, &out->period2_ms);
-    if (rc != 0)
-        return rc;
-    rc = crumbs_msg_read_u8(reply.data, reply.data_len, 18, &out->tc_select);
-    if (rc != 0)
-        return rc;
-
-    out->tc1 = (uint8_t)(out->tc_select & 0x03);
-    out->tc2 = (uint8_t)((out->tc_select >> 2) & 0x03);
-    return 0;
+    return rlht_parse_state_payload(reply.data, reply.data_len, out);
 }
 
 static inline int rlht_get_version(const crumbs_device_t *dev, rlht_version_result_t *out)

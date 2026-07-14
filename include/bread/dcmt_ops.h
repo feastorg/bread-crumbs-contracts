@@ -199,6 +199,54 @@ typedef struct
     uint32_t flags;
 } dcmt_caps_result_t;
 
+/*
+ * Parse a DCMT GET_STATE payload into a state result. Shared by
+ * dcmt_get_state() and by controllers that run the query round-trip through
+ * their own transport (retry/locking/timing) and only need the wire layout.
+ */
+static inline int dcmt_parse_state_payload(const uint8_t *data, uint8_t data_len, dcmt_state_result_t *out)
+{
+    int rc;
+
+    if (!data || !out)
+        return -1;
+
+    if (data_len != DCMT_STATE_FIXED_LEN)
+        return -1;
+
+    rc = crumbs_msg_read_u8(data, data_len, DCMT_STATE_OFF_MODE, &out->mode);
+    if (rc != 0)
+        return rc;
+    rc = crumbs_msg_read_i16(data, data_len, DCMT_STATE_OFF_M1_PWM, &out->m1_pwm);
+    if (rc != 0)
+        return rc;
+    rc = crumbs_msg_read_i16(data, data_len, DCMT_STATE_OFF_M2_PWM, &out->m2_pwm);
+    if (rc != 0)
+        return rc;
+    rc = crumbs_msg_read_i16(data, data_len, DCMT_STATE_OFF_SP1, &out->sp1);
+    if (rc != 0)
+        return rc;
+    rc = crumbs_msg_read_i16(data, data_len, DCMT_STATE_OFF_SP2, &out->sp2);
+    if (rc != 0)
+        return rc;
+    rc = crumbs_msg_read_i16(data, data_len, DCMT_STATE_OFF_POS1, &out->pos1);
+    if (rc != 0)
+        return rc;
+    rc = crumbs_msg_read_i16(data, data_len, DCMT_STATE_OFF_POS2, &out->pos2);
+    if (rc != 0)
+        return rc;
+    rc = crumbs_msg_read_i16(data, data_len, DCMT_STATE_OFF_SPD1, &out->spd1);
+    if (rc != 0)
+        return rc;
+    rc = crumbs_msg_read_i16(data, data_len, DCMT_STATE_OFF_SPD2, &out->spd2);
+    if (rc != 0)
+        return rc;
+    rc = crumbs_msg_read_u8(data, data_len, DCMT_STATE_OFF_BRAKES, &out->brakes);
+    if (rc != 0)
+        return rc;
+    return crumbs_msg_read_u8(data, data_len, DCMT_STATE_OFF_ESTOP, &out->estop);
+}
+
 static inline int dcmt_get_state(const crumbs_device_t *dev, dcmt_state_result_t *out)
 {
     crumbs_message_t reply;
@@ -220,40 +268,7 @@ static inline int dcmt_get_state(const crumbs_device_t *dev, dcmt_state_result_t
     if (reply.type_id != DCMT_TYPE_ID || reply.opcode != DCMT_OP_GET_STATE)
         return -1;
 
-    if (reply.data_len != DCMT_STATE_FIXED_LEN)
-        return -1;
-
-    rc = crumbs_msg_read_u8(reply.data, reply.data_len, DCMT_STATE_OFF_MODE, &out->mode);
-    if (rc != 0)
-        return rc;
-    rc = crumbs_msg_read_i16(reply.data, reply.data_len, DCMT_STATE_OFF_M1_PWM, &out->m1_pwm);
-    if (rc != 0)
-        return rc;
-    rc = crumbs_msg_read_i16(reply.data, reply.data_len, DCMT_STATE_OFF_M2_PWM, &out->m2_pwm);
-    if (rc != 0)
-        return rc;
-    rc = crumbs_msg_read_i16(reply.data, reply.data_len, DCMT_STATE_OFF_SP1, &out->sp1);
-    if (rc != 0)
-        return rc;
-    rc = crumbs_msg_read_i16(reply.data, reply.data_len, DCMT_STATE_OFF_SP2, &out->sp2);
-    if (rc != 0)
-        return rc;
-    rc = crumbs_msg_read_i16(reply.data, reply.data_len, DCMT_STATE_OFF_POS1, &out->pos1);
-    if (rc != 0)
-        return rc;
-    rc = crumbs_msg_read_i16(reply.data, reply.data_len, DCMT_STATE_OFF_POS2, &out->pos2);
-    if (rc != 0)
-        return rc;
-    rc = crumbs_msg_read_i16(reply.data, reply.data_len, DCMT_STATE_OFF_SPD1, &out->spd1);
-    if (rc != 0)
-        return rc;
-    rc = crumbs_msg_read_i16(reply.data, reply.data_len, DCMT_STATE_OFF_SPD2, &out->spd2);
-    if (rc != 0)
-        return rc;
-    rc = crumbs_msg_read_u8(reply.data, reply.data_len, DCMT_STATE_OFF_BRAKES, &out->brakes);
-    if (rc != 0)
-        return rc;
-    return crumbs_msg_read_u8(reply.data, reply.data_len, DCMT_STATE_OFF_ESTOP, &out->estop);
+    return dcmt_parse_state_payload(reply.data, reply.data_len, out);
 }
 
 static inline int dcmt_get_version(const crumbs_device_t *dev, dcmt_version_result_t *out)

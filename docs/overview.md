@@ -6,6 +6,7 @@ This documentation describes the public wire-contract model for BREADS-compatibl
 
 - Canonical public headers in `include/bread/`
 - Capability discovery (`BREAD_OP_GET_CAPS`)
+- Shared command watchdog (`BREAD_OP_SET_WATCHDOG` / `BREAD_OP_GET_WATCHDOG`)
 - Controller compatibility behavior
 - Type-ID allocation and versioning policy
 

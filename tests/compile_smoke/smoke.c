@@ -29,6 +29,23 @@ int bread_contracts_smoke(void)
         ok += (dcmt_parse_state_payload(dcmt_payload, DCMT_STATE_FIXED_LEN - 1, &dcmt_state) == -1) ? 0 : 1;
         ok += (dcmt_parse_state_payload(NULL, DCMT_STATE_FIXED_LEN, &dcmt_state) == -1) ? 0 : 1;
     }
+    /* Shared watchdog ops: build_reply/parse round-trip; short and NULL
+       payloads rejected; caps flags outside both baseline sets. */
+    {
+        crumbs_message_t wd_reply;
+        bread_watchdog_result_t wd;
+        ok += (BREAD_OP_SET_WATCHDOG == 0x7E) ? 0 : 1;
+        ok += (BREAD_OP_GET_WATCHDOG == 0x7D) ? 0 : 1;
+        ok += ((DCMT_CAP_CMD_WATCHDOG & DCMT_CAP_BASELINE_FLAGS) == 0u) ? 0 : 1;
+        ok += ((RLHT_CAP_CMD_WATCHDOG & RLHT_CAP_BASELINE_FLAGS) == 0u) ? 0 : 1;
+        ok += (bread_watchdog_build_reply(&wd_reply, DCMT_TYPE_ID, 1, 5000, 1, 3) == 0) ? 0 : 1;
+        ok += (wd_reply.type_id == DCMT_TYPE_ID && wd_reply.opcode == BREAD_OP_GET_WATCHDOG) ? 0 : 1;
+        ok += (wd_reply.data_len == BREAD_WATCHDOG_FIXED_LEN) ? 0 : 1;
+        ok += (bread_watchdog_parse_payload(wd_reply.data, wd_reply.data_len, &wd) == 0) ? 0 : 1;
+        ok += (wd.armed == 1 && wd.timeout_ms == 5000 && wd.tripped == 1 && wd.trip_count == 3) ? 0 : 1;
+        ok += (bread_watchdog_parse_payload(wd_reply.data, BREAD_WATCHDOG_FIXED_LEN - 1, &wd) == -1) ? 0 : 1;
+        ok += (bread_watchdog_parse_payload(NULL, BREAD_WATCHDOG_FIXED_LEN, &wd) == -1) ? 0 : 1;
+    }
     {
         uint8_t rlht_payload[19] = {0};
         rlht_state_result_t rlht_state;

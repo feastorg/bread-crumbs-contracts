@@ -49,6 +49,10 @@ Flags:
 - bit 2: `DCMT_CAP_CLOSED_LOOP_POSITION`
 - bit 3: `DCMT_CAP_CLOSED_LOOP_SPEED`
 - bit 4: `DCMT_CAP_PID_TUNING`
+- bit 5: `DCMT_CAP_CMD_WATCHDOG` — firmware supports the shared bus-liveness
+  command watchdog (`BREAD_OP_SET_WATCHDOG` / `BREAD_OP_GET_WATCHDOG`);
+  controllers must not send `BREAD_OP_SET_WATCHDOG` unless this flag is
+  advertised
 
 Baseline flag set:
 
@@ -70,10 +74,15 @@ Flags:
 - bit 3: `RLHT_CAP_PERIOD_CONTROL`
 - bit 4: `RLHT_CAP_TC_SELECT`
 - bit 5: `RLHT_CAP_OPEN_DUTY_CONTROL`
+- bit 6: `RLHT_CAP_CMD_WATCHDOG` — firmware supports the shared bus-liveness
+  command watchdog (`BREAD_OP_SET_WATCHDOG` / `BREAD_OP_GET_WATCHDOG`);
+  controllers must not send `BREAD_OP_SET_WATCHDOG` unless this flag is
+  advertised
 
 Baseline flag set:
 
-- `RLHT_CAP_BASELINE_FLAGS` (all currently supported RLHT control features)
+- `RLHT_CAP_BASELINE_FLAGS` (all currently supported RLHT control features;
+  does not include `RLHT_CAP_CMD_WATCHDOG`)
 
 ## Extension Policy
 

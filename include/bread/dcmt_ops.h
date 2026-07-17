@@ -4,6 +4,7 @@
 #include "crumbs.h"
 #include "crumbs_message_helpers.h"
 #include "bread_caps.h"
+#include "bread_watchdog.h"
 
 #ifdef __cplusplus
 extern "C"
@@ -60,6 +61,7 @@ extern "C"
 #define DCMT_CAP_CLOSED_LOOP_POSITION ((uint32_t)1u << 2)
 #define DCMT_CAP_CLOSED_LOOP_SPEED ((uint32_t)1u << 3)
 #define DCMT_CAP_PID_TUNING ((uint32_t)1u << 4)
+#define DCMT_CAP_CMD_WATCHDOG ((uint32_t)1u << 5)
 
 #define DCMT_CAP_BASELINE_FLAGS (DCMT_CAP_OPEN_LOOP_CONTROL | DCMT_CAP_BRAKE_CONTROL)
 
@@ -139,6 +141,16 @@ static inline int dcmt_send_set_pid(const crumbs_device_t *dev,
     return crumbs_controller_send(dev->ctx, dev->addr, &msg, dev->write_fn, dev->io);
 }
 
+static inline int dcmt_send_set_watchdog(const crumbs_device_t *dev, uint16_t timeout_ms)
+{
+    crumbs_message_t msg;
+    if (dcmt_validate_write_device(dev) != 0)
+        return -1;
+    crumbs_msg_init(&msg, DCMT_TYPE_ID, BREAD_OP_SET_WATCHDOG);
+    crumbs_msg_add_u16(&msg, timeout_ms);
+    return crumbs_controller_send(dev->ctx, dev->addr, &msg, dev->write_fn, dev->io);
+}
+
 static inline int dcmt_query_state(const crumbs_device_t *dev)
 {
     crumbs_message_t msg;
@@ -166,6 +178,16 @@ static inline int dcmt_query_caps(const crumbs_device_t *dev)
         return -1;
     crumbs_msg_init(&msg, 0, CRUMBS_CMD_SET_REPLY);
     crumbs_msg_add_u8(&msg, BREAD_OP_GET_CAPS);
+    return crumbs_controller_send(dev->ctx, dev->addr, &msg, dev->write_fn, dev->io);
+}
+
+static inline int dcmt_query_watchdog(const crumbs_device_t *dev)
+{
+    crumbs_message_t msg;
+    if (dcmt_validate_write_device(dev) != 0)
+        return -1;
+    crumbs_msg_init(&msg, 0, CRUMBS_CMD_SET_REPLY);
+    crumbs_msg_add_u8(&msg, BREAD_OP_GET_WATCHDOG);
     return crumbs_controller_send(dev->ctx, dev->addr, &msg, dev->write_fn, dev->io);
 }
 
@@ -198,6 +220,7 @@ typedef struct
     uint8_t level;
     uint32_t flags;
 } dcmt_caps_result_t;
+
 
 /*
  * Parse a DCMT GET_STATE payload into a state result. Shared by
@@ -334,6 +357,30 @@ static inline int dcmt_get_caps(const crumbs_device_t *dev, dcmt_caps_result_t *
     out->level = parsed.level;
     out->flags = parsed.flags;
     return 0;
+}
+
+static inline int dcmt_get_watchdog(const crumbs_device_t *dev, bread_watchdog_result_t *out)
+{
+    crumbs_message_t reply;
+    int rc;
+
+    if (!out || dcmt_validate_query_device(dev) != 0)
+        return -1;
+
+    rc = dcmt_query_watchdog(dev);
+    if (rc != 0)
+        return rc;
+
+    dev->delay_fn(CRUMBS_DEFAULT_QUERY_DELAY_US);
+
+    rc = crumbs_controller_read(dev->ctx, dev->addr, &reply, dev->read_fn, dev->io);
+    if (rc != 0)
+        return rc;
+
+    if (reply.type_id != DCMT_TYPE_ID || reply.opcode != BREAD_OP_GET_WATCHDOG)
+        return -1;
+
+    return bread_watchdog_parse_payload(reply.data, reply.data_len, out);
 }
 
 #ifdef __cplusplus

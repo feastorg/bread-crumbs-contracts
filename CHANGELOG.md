@@ -2,6 +2,22 @@
 
 ## [Unreleased]
 
+### Added
+
+- Added the shared bus-liveness command-watchdog vocabulary (#14,
+  feastorg/Slice_DCMT#6, feastorg/Slice_RLHT#5) in `bread_watchdog.h`:
+  `BREAD_OP_SET_WATCHDOG` (0x7E, `[timeout_ms:u16]`, 0 = disarm) and
+  `BREAD_OP_GET_WATCHDOG` (0x7D,
+  `[armed:u8][timeout_ms:u16][tripped:u8][trip_count:u8]`) with
+  `bread_watchdog_result_t`, `bread_watchdog_parse_payload()`, and
+  `bread_watchdog_build_reply()`. Per-type wrappers
+  `dcmt_send_set_watchdog()` / `dcmt_query_watchdog()` /
+  `dcmt_get_watchdog()` and the RLHT equivalents, gated by new capability
+  flags `DCMT_CAP_CMD_WATCHDOG` (bit 5) and `RLHT_CAP_CMD_WATCHDOG`
+  (bit 6). Firmware boots disarmed, so standalone/serial use is
+  unaffected; controllers must feature-detect the flag before sending
+  `BREAD_OP_SET_WATCHDOG`. GET_STATE layouts are unchanged.
+
 ## [0.4.4] - 2026-07-14
 
 ### Added

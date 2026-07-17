@@ -7,6 +7,7 @@
  */
 
 #include "bread_caps.h"
+#include "bread_watchdog.h"
 #include "bread_version_helpers.h"
 #include "dcmt_ops.h"
 #include "rlht_ops.h"

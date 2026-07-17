@@ -30,11 +30,23 @@ Payload v1:
 
 Controller flow: version query -> caps query -> command gating.
 
+## Command Watchdog
+
+BREAD defines a shared bus-liveness command watchdog, gated per type by a
+capability flag (`DCMT_CAP_CMD_WATCHDOG`, `RLHT_CAP_CMD_WATCHDOG`):
+
+- `BREAD_OP_SET_WATCHDOG`: `[timeout_ms:u16]`, 0 = disarm (firmware boots disarmed)
+- `BREAD_OP_GET_WATCHDOG`: `[armed:u8][timeout_ms:u16][tripped:u8][trip_count:u8]`
+
+While armed, any valid inbound frame refreshes it; expiry drives the slice's
+actuators to their safe state without touching estop.
+
 ## Current Device Contracts
 
 - RLHT: `include/bread/rlht_ops.h`
 - DCMT: `include/bread/dcmt_ops.h`
 - Shared caps helpers: `include/bread/bread_caps.h`
+- Shared watchdog helpers: `include/bread/bread_watchdog.h`
 - Shared version helpers: `include/bread/bread_version_helpers.h`
 
 ## Quick Start (PlatformIO)

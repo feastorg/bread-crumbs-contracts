@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.14)
-project(bread_crumbs_contracts VERSION 0.4.4 LANGUAGES C)
+project(bread_crumbs_contracts VERSION 0.4.5 LANGUAGES C)
 
 if(CMAKE_CURRENT_SOURCE_DIR STREQUAL CMAKE_SOURCE_DIR)
     set(BREAD_CONTRACTS_TOP_LEVEL ON)

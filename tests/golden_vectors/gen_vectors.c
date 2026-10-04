@@ -658,6 +658,10 @@ static void emit_parse_vectors(void)
     vec_rlht_parse_state(&m, m.data_len);
     rlht_state_reply(&m, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0);
     vec_rlht_parse_state(&m, m.data_len);
+    /* Every u8 field above 0x7F and distinct from its neighbours: a parser
+       that reads a byte as i8 or swaps adjacent fields cannot pass. */
+    rlht_state_reply(&m, 0x80, 0x81, 1, 2, 3, 4, 5, 6, 7, 8, 0x82);
+    vec_rlht_parse_state(&m, m.data_len);
     vec_rlht_parse_state(&m, (uint8_t)(m.data_len - 1));
     vec_rlht_parse_state(&m, 0);
     /* One trailing byte: rlht_parse_state_payload() reads a fixed prefix and accepts it. */
@@ -677,6 +681,9 @@ static void emit_parse_vectors(void)
     vec_dcmt_parse_state(&m, m.data_len);
     dcmt_state_reply(&m, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0);
     vec_dcmt_parse_state(&m, m.data_len);
+    /* Every u8 field above 0x7F and distinct: catches i8 reads and swaps. */
+    dcmt_state_reply(&m, 0x80, 1, 2, 3, 4, 5, 6, 7, 8, 0x81, 0x82);
+    vec_dcmt_parse_state(&m, m.data_len);
     vec_dcmt_parse_state(&m, (uint8_t)(m.data_len - 1));
     vec_dcmt_parse_state(&m, 0);
     /* One trailing byte: dcmt_parse_state_payload() requires the exact length and rejects it. */
@@ -695,6 +702,14 @@ static void emit_parse_vectors(void)
     if (bread_caps_build_reply(&m, DCMT_TYPE_ID, 255, 0xFFFFFFFFu) != 0)
         die("caps build");
     vec_bread_caps_parse("DCMT_TYPE_ID", &m, m.data_len);
+    /* bread_caps_build_reply() hard-codes the schema, so a schema above 0x7F
+       (and a level distinct from it) is laid out by hand: catches an i8 read
+       of either byte and a schema/level swap. */
+    crumbs_msg_init(&m, RLHT_TYPE_ID, BREAD_OP_GET_CAPS);
+    crumbs_msg_add_u8(&m, 0x80);
+    crumbs_msg_add_u8(&m, 0x81);
+    crumbs_msg_add_u32(&m, 0x80000001u);
+    vec_bread_caps_parse("RLHT_TYPE_ID", &m, m.data_len);
     if (bread_caps_build_reply(&m, RLHT_TYPE_ID, 0, 0) != 0)
         die("caps build");
     vec_bread_caps_parse("RLHT_TYPE_ID", &m, m.data_len);
@@ -717,6 +732,17 @@ static void emit_parse_vectors(void)
     if (bread_watchdog_build_reply(&m, RLHT_TYPE_ID, 1, UINT16_MAX, 1, 255) != 0)
         die("watchdog build");
     vec_bread_watchdog_parse("RLHT_TYPE_ID", &m, m.data_len);
+    /* armed != tripped in both orders, and both above 0x7F once: catches an
+       armed/tripped swap and an i8 read of either byte. */
+    if (bread_watchdog_build_reply(&m, DCMT_TYPE_ID, 1, 5000, 0, 2) != 0)
+        die("watchdog build");
+    vec_bread_watchdog_parse("DCMT_TYPE_ID", &m, m.data_len);
+    if (bread_watchdog_build_reply(&m, DCMT_TYPE_ID, 0, 0, 1, 7) != 0)
+        die("watchdog build");
+    vec_bread_watchdog_parse("DCMT_TYPE_ID", &m, m.data_len);
+    if (bread_watchdog_build_reply(&m, RLHT_TYPE_ID, 0x80, 1234, 0x81, 0x82) != 0)
+        die("watchdog build");
+    vec_bread_watchdog_parse("RLHT_TYPE_ID", &m, m.data_len);
     vec_bread_watchdog_parse("RLHT_TYPE_ID", &m, (uint8_t)(m.data_len - 1));
     vec_bread_watchdog_parse("RLHT_TYPE_ID", &m, 0);
     /* One trailing byte: bread_watchdog_parse_payload() requires the exact length and rejects it. */
@@ -725,10 +751,16 @@ static void emit_parse_vectors(void)
     crumbs_msg_add_u8(&m, 0xAA);
     vec_bread_watchdog_parse("DCMT_TYPE_ID", &m, m.data_len);
 
-    /* Version: CRUMBS 0.14.0 (1400) and the minimum (1200), module 1.0.0 and extremes. */
-    version_reply(&m, RLHT_TYPE_ID, CRUMBS_VERSION,
+    /* Version: 1400 (CRUMBS 0.14.0, written as a literal so the file does not
+       change with the CRUMBS build) and the minimum (1200), module 1.0.0,
+       distinct major/minor/patch, and extremes. */
+    version_reply(&m, RLHT_TYPE_ID, 1400,
                   RLHT_MODULE_VER_MAJOR, RLHT_MODULE_VER_MINOR, RLHT_MODULE_VER_PATCH);
     vec_bread_parse_version("RLHT_TYPE_ID", &m, m.data_len);
+    version_reply(&m, RLHT_TYPE_ID, 1400, 1, 2, 3);
+    vec_bread_parse_version("RLHT_TYPE_ID", &m, m.data_len);
+    version_reply(&m, DCMT_TYPE_ID, 0x8001, 0x80, 0x81, 0x82);
+    vec_bread_parse_version("DCMT_TYPE_ID", &m, m.data_len);
     version_reply(&m, DCMT_TYPE_ID, BREAD_MIN_CRUMBS_VERSION,
                   DCMT_MODULE_VER_MAJOR, DCMT_MODULE_VER_MINOR, DCMT_MODULE_VER_PATCH);
     vec_bread_parse_version("DCMT_TYPE_ID", &m, m.data_len);
@@ -739,7 +771,7 @@ static void emit_parse_vectors(void)
     vec_bread_parse_version("RLHT_TYPE_ID", &m, (uint8_t)(m.data_len - 1));
     vec_bread_parse_version("RLHT_TYPE_ID", &m, 0);
     /* One trailing byte: bread_parse_version() reads a fixed prefix and accepts it. */
-    version_reply(&m, DCMT_TYPE_ID, CRUMBS_VERSION,
+    version_reply(&m, DCMT_TYPE_ID, 1400,
                   DCMT_MODULE_VER_MAJOR, DCMT_MODULE_VER_MINOR, DCMT_MODULE_VER_PATCH);
     crumbs_msg_add_u8(&m, 0xAA);
     vec_bread_parse_version("DCMT_TYPE_ID", &m, m.data_len);

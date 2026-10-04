@@ -26,6 +26,10 @@
 - CI gained a `golden-vectors` job that regenerates `vectors.json` and
   fails on any difference, and a `python` job that runs ruff, pyright and
   pytest through uv.
+- Added `bread_crumbs_contracts.__version__`, read from the installed
+  distribution's metadata, and a test that holds it equal to the version in
+  `library.json`, `library.properties` and `CMakeLists.txt`, so a bump that
+  misses one of them fails CI.
 
 ### Changed
 

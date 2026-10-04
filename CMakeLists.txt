@@ -32,6 +32,11 @@ if(BREAD_CONTRACTS_BUILD_TESTS)
     if(BUILD_TESTING)
         add_test(NAME bread_contracts_compile_smoke COMMAND bread_contracts_compile_smoke)
     endif()
+
+    # Writes tests/golden_vectors/vectors.json from the real headers; CI
+    # regenerates the file and fails on any difference.
+    add_executable(bread_contracts_gen_vectors tests/golden_vectors/gen_vectors.c)
+    target_link_libraries(bread_contracts_gen_vectors PRIVATE bread::contracts)
 endif()
 
 install(DIRECTORY include/ DESTINATION include)

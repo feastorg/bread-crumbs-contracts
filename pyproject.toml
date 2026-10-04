@@ -6,7 +6,8 @@ readme = "README.md"
 requires-python = ">=3.11"
 license = "AGPL-3.0-or-later"
 license-files = ["LICENSE"]
-authors = [{ name = "Cameron K. Brooks", email = "cambrooks3393@gmail.com" }]
+authors = [{ name = "Cameron K. Brooks" }]
+maintainers = [{ name = "Cameron K. Brooks", email = "cambrooks3393@gmail.com" }]
 keywords = ["crumbs", "i2c", "bread", "contracts"]
 classifiers = [
     "Development Status :: 3 - Alpha",

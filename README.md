@@ -99,6 +99,67 @@ Ensure CRUMBS headers are also on include path, since contract headers depend on
 - `crumbs_message_helpers.h`
 - `crumbs_version.h`
 
+## Python Codec
+
+`bindings/python` is a pure-Python codec for the same contracts, for
+controllers written in Python. It mirrors the headers one module per header
+and names every function after its C helper: `rlht_send_set_setpoints()`
+returns the payload bytes `rlht_send_set_setpoints()` puts on the wire,
+`dcmt_parse_state_payload()` returns a frozen `DcmtStateResult`, and the
+`*_query_*` functions return the one-byte SET_REPLY payload. Framing, CRC
+and I2C stay in the transport (CRUMBS, or a Python binding of it); the
+codec stops at type id, opcode and payload.
+
+Install from source until a release is on PyPI (#21); Python 3.11 or newer,
+no runtime dependencies:
+
+```bash
+pip install git+https://github.com/feastorg/bread-crumbs-contracts.git
+```
+
+```python
+from bread_crumbs_contracts import (
+    CRUMBS_CMD_SET_REPLY,
+    CRUMBS_TYPE_ID_ANY,
+    RLHT_OP_SET_SETPOINTS,
+    RLHT_TYPE_ID,
+    rlht_parse_state_payload,
+    rlht_query_state,
+    rlht_send_set_setpoints,
+)
+
+# SET_SETPOINTS at 25.0 C and -1.0 C. Send the payload with RLHT_TYPE_ID and
+# RLHT_OP_SET_SETPOINTS through the CRUMBS transport; arguments outside the
+# field's range raise ValueError before anything is encoded.
+payload = rlht_send_set_setpoints(sp1_deci_c=250, sp2_deci_c=-10)
+assert (RLHT_TYPE_ID, RLHT_OP_SET_SETPOINTS, payload.hex()) == (0x01, 0x02, "fa00f6ff")
+
+# A query is a SET_REPLY frame whose payload names the reply to build next.
+request = rlht_query_state()
+assert (CRUMBS_TYPE_ID_ANY, CRUMBS_CMD_SET_REPLY, request.hex()) == (0x00, 0xFE, "80")
+
+# The GET_STATE reply payload read back through the transport. Parsers
+# reject a short payload and ignore bytes appended by a newer slice.
+state = rlht_parse_state_payload(bytes.fromhex("0002f401f6fffa002c016400c800e803d00706"))
+assert (state.t1_deci_c, state.t2_deci_c, state.tc1, state.tc2) == (500, -10, 2, 1)
+```
+
+The codec cannot drift from the headers: `tests/golden_vectors/gen_vectors.c`
+calls every C send and parse helper and writes `tests/golden_vectors/vectors.json`,
+the Python tests check every constant, encoder and parser against it, and CI
+regenerates the file and fails on any difference. To regenerate after a
+header change, build the test targets and run the generator (see
+`tests/golden_vectors/README.md`):
+
+```bash
+cmake --build build/contracts --target bread_contracts_gen_vectors
+./build/contracts/bread_contracts_gen_vectors tests/golden_vectors/vectors.json
+```
+
+Development uses [uv](https://docs.astral.sh/uv/): `uv sync` installs the
+locked tools, then `uv run ruff check`, `uv run pyright` and `uv run pytest`
+are what CI runs.
+
 ## Documentation
 
 - `docs/overview.md`
@@ -130,6 +191,14 @@ examples/
   controller_discovery/
   controller_manual/
 
+bindings/python/
+  src/bread_crumbs_contracts/
+  tests/
+
 tests/compile_smoke/
   smoke.c
+
+tests/golden_vectors/
+  gen_vectors.c
+  vectors.json
 ```

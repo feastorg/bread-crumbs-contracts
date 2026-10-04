@@ -1,6 +1,6 @@
 [project]
 name = "bread-crumbs-contracts"
-version = "0.4.5"
+version = "0.5.0"
 description = "Pure-Python codec for the BREAD CRUMBS operation contracts (RLHT, DCMT, caps, watchdog, version)"
 readme = "README.md"
 requires-python = ">=3.11"

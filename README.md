@@ -110,8 +110,16 @@ returns the payload bytes `rlht_send_set_setpoints()` puts on the wire,
 and I2C stay in the transport (CRUMBS, or a Python binding of it); the
 codec stops at type id, opcode and payload.
 
-Install from source until a release is on PyPI (#21); Python 3.11 or newer,
-no runtime dependencies:
+Install from [PyPI](https://pypi.org/project/bread-crumbs-contracts/); Python
+3.11 or newer, no runtime dependencies. Each release carries the version in
+`library.json`, so a Python controller pins the contract version the same
+way a PlatformIO one does:
+
+```bash
+pip install bread-crumbs-contracts
+```
+
+To use the codec from a checkout (unreleased changes, or your own branch):
 
 ```bash
 pip install git+https://github.com/feastorg/bread-crumbs-contracts.git

@@ -10,8 +10,10 @@ permissions:
 
 jobs:
   release:
-    name: Release (header-only)
+    name: Release (headers and Python dist)
     runs-on: ubuntu-22.04
+    outputs:
+      version: ${{ steps.version.outputs.version }}
     env:
       LINUX_WIRE_VERSION: "0.1.3"
       LINUX_WIRE_SHA256: "a7c3d1d8fcaf4f5aab50891bfc6ab13f3e3c204f0b62d22004d76afefef43e25"
@@ -24,9 +26,23 @@ jobs:
       - name: Install build tools
         run: sudo apt-get update && sudo apt-get install -y cmake ninja-build build-essential jq
 
-      - name: Extract version
+      - name: Check the tag names the version every package file carries
         id: version
-        run: echo "version=${GITHUB_REF_NAME#v}" >> "$GITHUB_OUTPUT"
+        run: |
+          VERSION="${GITHUB_REF_NAME#v}"
+          echo "version=${VERSION}" >> "$GITHUB_OUTPUT"
+          status=0
+          check() {
+            if [ "$2" != "${VERSION}" ]; then
+              echo "::error file=$1::$1 carries version '$2'; tag ${GITHUB_REF_NAME} names ${VERSION}"
+              status=1
+            fi
+          }
+          check library.json "$(jq -r .version library.json)"
+          check library.properties "$(sed -n 's/^version=//p' library.properties)"
+          check pyproject.toml "$(sed -n 's/^version = "\(.*\)"$/\1/p' pyproject.toml)"
+          check CMakeLists.txt "$(sed -n 's/^project(.* VERSION \([^ )]*\).*/\1/p' CMakeLists.txt)"
+          exit "${status}"
 
       - name: Install linux-wire from release
         run: |
@@ -76,6 +92,27 @@ jobs:
             -DCMAKE_PREFIX_PATH="${{ github.workspace }}/_deps/linux-wire-install;${{ github.workspace }}/_deps/crumbs-install;${{ github.workspace }}/staging"
           cmake --build build/smoke/out --parallel
 
+      - uses: astral-sh/setup-uv@v10.2.0
+        with:
+          python-version: "3.11"
+
+      - name: Test the Python codec in the locked environment
+        run: |
+          uv sync --locked
+          uv run pytest
+
+      - name: Build the sdist and the universal wheel
+        run: |
+          uv build
+          ls -l "dist/bread_crumbs_contracts-${{ steps.version.outputs.version }}-py3-none-any.whl" \
+            "dist/bread_crumbs_contracts-${{ steps.version.outputs.version }}.tar.gz"
+
+      - uses: actions/upload-artifact@v7
+        with:
+          name: python-dist
+          path: dist/
+          if-no-files-found: error
+
       - name: Package source tarball
         id: package
         run: |
@@ -87,7 +124,9 @@ jobs:
           echo "artifact=${ARTIFACT}" >> "$GITHUB_OUTPUT"
 
       - name: Generate checksums
-        run: sha256sum bread-crumbs-contracts-*.tar.gz > SHA256SUMS
+        run: |
+          sha256sum bread-crumbs-contracts-*.tar.gz > SHA256SUMS
+          (cd dist && sha256sum -- *) >> SHA256SUMS
 
       - name: Generate manifest
         run: |
@@ -110,6 +149,75 @@ jobs:
         with:
           files: |
             bread-crumbs-contracts-*.tar.gz
+            dist/*
             SHA256SUMS
             manifest.json
           generate_release_notes: true
+
+  # ─── PyPI: Trusted Publishing, so no token is stored. The publisher on
+  # pypi.org is registered for this repository, workflow `release.yml`
+  # and environment `pypi`; the environment's reviewers gate the upload. ──
+  publish:
+    name: Publish to PyPI
+    needs: release
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    environment:
+      name: pypi
+      url: https://pypi.org/project/bread-crumbs-contracts/${{ needs.release.outputs.version }}/
+    permissions:
+      id-token: write
+
+    steps:
+      - uses: actions/download-artifact@v8
+        with:
+          name: python-dist
+          path: dist/
+
+      - uses: pypa/gh-action-pypi-publish@v1.14.2
+
+  # ─── The published package, installed the way a consumer installs it:
+  # no checkout, a fresh venv, the release pinned by version. ──
+  verify-pypi:
+    name: Install from PyPI
+    needs: [release, publish]
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    permissions: {}
+    env:
+      VERSION: ${{ needs.release.outputs.version }}
+
+    steps:
+      - uses: astral-sh/setup-uv@v10.2.0
+        with:
+          python-version: "3.11"
+
+      - name: Install the released version into a clean venv
+        run: |
+          uv venv "$RUNNER_TEMP/venv"
+          # The index can lag the upload by a few minutes; keep asking.
+          for attempt in $(seq 1 20); do
+            if uv pip install --python "$RUNNER_TEMP/venv/bin/python" --no-cache \
+                "bread-crumbs-contracts==${VERSION}"; then
+              exit 0
+            fi
+            echo "attempt ${attempt}: ${VERSION} is not installable yet; retrying in 30 s"
+            sleep 30
+          done
+          exit 1
+
+      - name: Import it, check its version and encode a frame
+        run: |
+          "$RUNNER_TEMP/venv/bin/python" - <<'EOF'
+          import os
+
+          import bread_crumbs_contracts as bcc
+
+          assert bcc.__file__.startswith(os.environ["RUNNER_TEMP"]), bcc.__file__
+          assert bcc.__version__ == os.environ["VERSION"], bcc.__version__
+          payload = bcc.rlht_send_set_setpoints(sp1_deci_c=250, sp2_deci_c=-10)
+          assert (bcc.RLHT_TYPE_ID, bcc.RLHT_OP_SET_SETPOINTS, payload.hex()) == (0x01, 0x02, "fa00f6ff")
+          state = bcc.rlht_parse_state_payload(bytes.fromhex("0002f401f6fffa002c016400c800e803d00706"))
+          assert (state.t1_deci_c, state.t2_deci_c, state.tc1, state.tc2) == (500, -10, 2, 1)
+          print(f"bread-crumbs-contracts {bcc.__version__} from {bcc.__file__}")
+          EOF

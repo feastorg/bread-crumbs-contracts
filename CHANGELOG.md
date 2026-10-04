@@ -30,6 +30,15 @@
   distribution's metadata, and a test that holds it equal to the version in
   `library.json`, `library.properties` and `CMakeLists.txt`, so a bump that
   misses one of them fails CI.
+- The release workflow now publishes the Python package (#21). On a `v*`
+  tag it checks that the tag names the version in `library.json`,
+  `library.properties`, `pyproject.toml` and `CMakeLists.txt`, runs the
+  Python tests, builds the sdist and the universal wheel with uv and
+  attaches them to the GitHub release, publishes them to PyPI through
+  Trusted Publishing from the `pypi` environment, and then installs the
+  released version from PyPI into a clean environment, imports it and checks
+  `__version__`, one encoder and one parser. The README install line is
+  `pip install bread-crumbs-contracts`.
 
 ### Changed
 

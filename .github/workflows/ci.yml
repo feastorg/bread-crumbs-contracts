@@ -72,12 +72,81 @@ jobs:
             -DCMAKE_PREFIX_PATH="$PWD/_deps/linux-wire-install;$PWD/_deps/crumbs-install"
           cmake --build build/controller_manual --config Release --parallel
 
+  # ─── Golden vectors are generated from the headers; the committed copy must match ──
+  golden-vectors:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    env:
+      LINUX_WIRE_VERSION: "0.1.3"
+      LINUX_WIRE_SHA256: "a7c3d1d8fcaf4f5aab50891bfc6ab13f3e3c204f0b62d22004d76afefef43e25"
+      CRUMBS_VERSION: "0.14.0"
+      CRUMBS_SHA256: "dc064983f6a17ea4834ac0dfdf3b9eeeaba3d3751f86fe1a269423b477cb83ff"
+
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Install linux-wire from release
+        run: |
+          mkdir -p _deps/linux-wire-install
+          curl -fsSL "https://github.com/feastorg/linux-wire/releases/download/v${LINUX_WIRE_VERSION}/linux-wire-${LINUX_WIRE_VERSION}-linux-x86_64.tar.gz" \
+            -o linux-wire.tar.gz
+          echo "${LINUX_WIRE_SHA256}  linux-wire.tar.gz" | sha256sum -c -
+          tar -xzf linux-wire.tar.gz -C _deps/linux-wire-install
+
+      - name: Install CRUMBS from release
+        run: |
+          mkdir -p _deps/crumbs-install
+          curl -fsSL "https://github.com/feastorg/CRUMBS/releases/download/v${CRUMBS_VERSION}/crumbs-${CRUMBS_VERSION}-linux-x86_64.tar.gz" \
+            -o crumbs.tar.gz
+          echo "${CRUMBS_SHA256}  crumbs.tar.gz" | sha256sum -c -
+          tar -xzf crumbs.tar.gz -C _deps/crumbs-install
+
+      - name: Build the golden-vector generator
+        run: |
+          cmake -S . -B build/contracts \
+            -DCMAKE_BUILD_TYPE=Release \
+            -DCMAKE_PREFIX_PATH="$PWD/_deps/linux-wire-install;$PWD/_deps/crumbs-install"
+          cmake --build build/contracts --config Release --parallel --target bread_contracts_gen_vectors
+
+      - name: Regenerate vectors.json and fail on any difference
+        run: |
+          ./build/contracts/bread_contracts_gen_vectors tests/golden_vectors/vectors.json
+          git diff --exit-code -- tests/golden_vectors/vectors.json
+
+  # ─── Python codec: lint, type-check, test against the vectors ──
+  python:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: astral-sh/setup-uv@v10
+        with:
+          version: "0.11.12"
+          python-version: "3.11"
+
+      - name: Install the locked dev environment
+        run: uv sync --locked
+
+      - name: Format check
+        run: uv run ruff format --check
+
+      - name: Lint
+        run: uv run ruff check
+
+      - name: Type check
+        run: uv run pyright
+
+      - name: Test
+        run: uv run pytest
+
   # ─── Unified gate ─────────────────────────────────────────────
   # Branch protection requires only: CI / ok
   ok:
     name: ok
     if: always()
-    needs: [cmake-package-smoke]
+    needs: [cmake-package-smoke, golden-vectors, python]
     runs-on: ubuntu-latest
     timeout-minutes: 5
     steps:

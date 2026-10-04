@@ -2,6 +2,12 @@
 
 ## [Unreleased]
 
+### Changed
+
+- CI and release workflows now build against CRUMBS `0.14.0` and linux-wire
+  `0.1.3` (the version CRUMBS 0.14.0 builds with) while keeping the public
+  package dependency range at `^0.12.0`.
+
 ## [0.4.5] - 2026-07-17
 
 ### Added

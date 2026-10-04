@@ -5,7 +5,10 @@
  * through a write function that captures the frame, decodes the frame with
  * CRUMBS, and records the type id, opcode and payload bytes. Calls every
  * payload parser on known replies and records the parsed fields, or the
- * rejection of a short payload.
+ * rejection of a short payload. Every parser also gets a payload one byte
+ * over its fixed length, so the file records whether the C accepts
+ * trailing bytes (rlht state, caps, version) or rejects them (dcmt state,
+ * watchdog).
  *
  * The output is deterministic: fixed key order, no timestamps, no
  * environment-dependent values. CI regenerates tests/golden_vectors/vectors.json
@@ -657,6 +660,11 @@ static void emit_parse_vectors(void)
     vec_rlht_parse_state(&m, m.data_len);
     vec_rlht_parse_state(&m, (uint8_t)(m.data_len - 1));
     vec_rlht_parse_state(&m, 0);
+    /* One trailing byte: rlht_parse_state_payload() reads a fixed prefix and accepts it. */
+    rlht_state_reply(&m, RLHT_MODE_CLOSED_LOOP, RLHT_FLAG_RELAY2_ON,
+                     215, 220, 250, 300, 100, 200, 1000, 2000, 0x09);
+    crumbs_msg_add_u8(&m, 0xAA);
+    vec_rlht_parse_state(&m, m.data_len);
 
     /* DCMT GET_STATE: closed-speed, open-loop with sentinels, extremes, zero, short, empty. */
     dcmt_state_reply(&m, DCMT_MODE_CLOSED_SPEED, 100, -100, 500, -500, 1234, -1234, 60, -60, 0, 0);
@@ -671,6 +679,10 @@ static void emit_parse_vectors(void)
     vec_dcmt_parse_state(&m, m.data_len);
     vec_dcmt_parse_state(&m, (uint8_t)(m.data_len - 1));
     vec_dcmt_parse_state(&m, 0);
+    /* One trailing byte: dcmt_parse_state_payload() requires the exact length and rejects it. */
+    dcmt_state_reply(&m, DCMT_MODE_CLOSED_SPEED, 100, -100, 500, -500, 1234, -1234, 60, -60, 0, 0);
+    crumbs_msg_add_u8(&m, 0xAA);
+    vec_dcmt_parse_state(&m, m.data_len);
 
     /* GET_CAPS: replies built by the header's own builder. */
     if (bread_caps_build_reply(&m, RLHT_TYPE_ID, RLHT_CAP_LEVEL_3,
@@ -688,6 +700,12 @@ static void emit_parse_vectors(void)
     vec_bread_caps_parse("RLHT_TYPE_ID", &m, m.data_len);
     vec_bread_caps_parse("RLHT_TYPE_ID", &m, (uint8_t)(m.data_len - 1));
     vec_bread_caps_parse("RLHT_TYPE_ID", &m, 0);
+    /* One trailing byte: bread_caps_parse_payload() reads a fixed prefix and accepts it. */
+    if (bread_caps_build_reply(&m, DCMT_TYPE_ID, DCMT_CAP_LEVEL_3,
+                               DCMT_CAP_BASELINE_FLAGS | DCMT_CAP_CMD_WATCHDOG) != 0)
+        die("caps build");
+    crumbs_msg_add_u8(&m, 0xAA);
+    vec_bread_caps_parse("DCMT_TYPE_ID", &m, m.data_len);
 
     /* GET_WATCHDOG: replies built by the header's own builder. */
     if (bread_watchdog_build_reply(&m, DCMT_TYPE_ID, 1, 5000, 1, 3) != 0)
@@ -701,6 +719,11 @@ static void emit_parse_vectors(void)
     vec_bread_watchdog_parse("RLHT_TYPE_ID", &m, m.data_len);
     vec_bread_watchdog_parse("RLHT_TYPE_ID", &m, (uint8_t)(m.data_len - 1));
     vec_bread_watchdog_parse("RLHT_TYPE_ID", &m, 0);
+    /* One trailing byte: bread_watchdog_parse_payload() requires the exact length and rejects it. */
+    if (bread_watchdog_build_reply(&m, DCMT_TYPE_ID, 1, 5000, 0, 0) != 0)
+        die("watchdog build");
+    crumbs_msg_add_u8(&m, 0xAA);
+    vec_bread_watchdog_parse("DCMT_TYPE_ID", &m, m.data_len);
 
     /* Version: CRUMBS 0.14.0 (1400) and the minimum (1200), module 1.0.0 and extremes. */
     version_reply(&m, RLHT_TYPE_ID, CRUMBS_VERSION,
@@ -715,6 +738,11 @@ static void emit_parse_vectors(void)
     vec_bread_parse_version("RLHT_TYPE_ID", &m, m.data_len);
     vec_bread_parse_version("RLHT_TYPE_ID", &m, (uint8_t)(m.data_len - 1));
     vec_bread_parse_version("RLHT_TYPE_ID", &m, 0);
+    /* One trailing byte: bread_parse_version() reads a fixed prefix and accepts it. */
+    version_reply(&m, DCMT_TYPE_ID, CRUMBS_VERSION,
+                  DCMT_MODULE_VER_MAJOR, DCMT_MODULE_VER_MINOR, DCMT_MODULE_VER_PATCH);
+    crumbs_msg_add_u8(&m, 0xAA);
+    vec_bread_parse_version("DCMT_TYPE_ID", &m, m.data_len);
 
     array_end(1);
 }

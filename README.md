@@ -138,8 +138,11 @@ assert (RLHT_TYPE_ID, RLHT_OP_SET_SETPOINTS, payload.hex()) == (0x01, 0x02, "fa0
 request = rlht_query_state()
 assert (CRUMBS_TYPE_ID_ANY, CRUMBS_CMD_SET_REPLY, request.hex()) == (0x00, 0xFE, "80")
 
-# The GET_STATE reply payload read back through the transport. Parsers
-# reject a short payload and ignore bytes appended by a newer slice.
+# The GET_STATE reply payload read back through the transport. Each parser
+# applies the length rule of its C namesake: rlht_parse_state_payload reads
+# the 19-byte prefix and ignores trailing bytes; dcmt_parse_state_payload
+# and bread_watchdog_parse_payload require the exact length (#18 is where
+# the rule becomes uniform).
 state = rlht_parse_state_payload(bytes.fromhex("0002f401f6fffa002c016400c800e803d00706"))
 assert (state.t1_deci_c, state.t2_deci_c, state.tc1, state.tc2) == (500, -10, 2, 1)
 ```

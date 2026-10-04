@@ -628,6 +628,30 @@
       "result": null
     },
     {
+      "name": "rlht_parse_state_payload",
+      "type_id_name": "RLHT_TYPE_ID",
+      "type_id": 1,
+      "opcode_name": "RLHT_OP_GET_STATE",
+      "opcode": 128,
+      "payload": "0004d700dc00fa002c016400c800e803d00709aa",
+      "rc": 0,
+      "result": {
+        "mode": 0,
+        "flags": 4,
+        "t1_deci_c": 215,
+        "t2_deci_c": 220,
+        "sp1_deci_c": 250,
+        "sp2_deci_c": 300,
+        "on1_ms": 100,
+        "on2_ms": 200,
+        "period1_ms": 1000,
+        "period2_ms": 2000,
+        "tc_select": 9,
+        "tc1": 1,
+        "tc2": 2
+      }
+    },
+    {
       "name": "dcmt_parse_state_payload",
       "type_id_name": "DCMT_TYPE_ID",
       "type_id": 2,
@@ -736,6 +760,16 @@
       "result": null
     },
     {
+      "name": "dcmt_parse_state_payload",
+      "type_id_name": "DCMT_TYPE_ID",
+      "type_id": 2,
+      "opcode_name": "DCMT_OP_GET_STATE",
+      "opcode": 128,
+      "payload": "0264009cfff4010cfed2042efb3c00c4ff0000aa",
+      "rc": -1,
+      "result": null
+    },
+    {
       "name": "bread_caps_parse_payload",
       "type_id_name": "RLHT_TYPE_ID",
       "type_id": 1,
@@ -812,6 +846,20 @@
       "result": null
     },
     {
+      "name": "bread_caps_parse_payload",
+      "type_id_name": "DCMT_TYPE_ID",
+      "type_id": 2,
+      "opcode_name": "BREAD_OP_GET_CAPS",
+      "opcode": 127,
+      "payload": "010323000000aa",
+      "rc": 0,
+      "result": {
+        "schema": 1,
+        "level": 3,
+        "flags": 35
+      }
+    },
+    {
       "name": "bread_watchdog_parse_payload",
       "type_id_name": "DCMT_TYPE_ID",
       "type_id": 2,
@@ -873,6 +921,16 @@
       "opcode_name": "BREAD_OP_GET_WATCHDOG",
       "opcode": 125,
       "payload": "",
+      "rc": -1,
+      "result": null
+    },
+    {
+      "name": "bread_watchdog_parse_payload",
+      "type_id_name": "DCMT_TYPE_ID",
+      "type_id": 2,
+      "opcode_name": "BREAD_OP_GET_WATCHDOG",
+      "opcode": 125,
+      "payload": "0188130000aa",
       "rc": -1,
       "result": null
     },
@@ -955,6 +1013,21 @@
       "payload": "",
       "rc": -1,
       "result": null
+    },
+    {
+      "name": "bread_parse_version",
+      "type_id_name": "DCMT_TYPE_ID",
+      "type_id": 2,
+      "opcode_name": "BREAD_OP_GET_VERSION",
+      "opcode": 0,
+      "payload": "7805010000aa",
+      "rc": 0,
+      "result": {
+        "crumbs_ver": 1400,
+        "mod_major": 1,
+        "mod_minor": 0,
+        "mod_patch": 0
+      }
     }
   ]
 }

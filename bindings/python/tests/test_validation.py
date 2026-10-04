@@ -82,18 +82,41 @@ def test_every_encoder_field_has_a_range_case() -> None:
     assert expected == {(case[0].__name__, case[2]) for case in RANGE_CASES}
 
 
-_ACCEPTED_PARSE: list[dict[str, Any]] = [vec for vec in PARSE if vec["rc"] == 0]
+# Each parser applies the length rule its C namesake applies today (#18 is
+# where the rule becomes uniform): exact length, or a fixed prefix with
+# trailing bytes ignored.
+PARSER_FIXED_LEN: dict[str, int] = {
+    "rlht_parse_state_payload": bcc.RLHT_STATE_FIXED_LEN,
+    "dcmt_parse_state_payload": bcc.DCMT_STATE_FIXED_LEN,
+    "bread_caps_parse_payload": bcc.BREAD_CAPS_V1_PAYLOAD_LEN,
+    "bread_watchdog_parse_payload": bcc.BREAD_WATCHDOG_FIXED_LEN,
+    "bread_parse_version": bcc.BREAD_VERSION_PAYLOAD_LEN,
+}
+EXACT_LENGTH_PARSERS = {"dcmt_parse_state_payload", "bread_watchdog_parse_payload"}
+
+_FIXED_LEN_PARSE: list[dict[str, Any]] = [
+    vec
+    for vec in PARSE
+    if vec["rc"] == 0 and len(bytes.fromhex(vec["payload"])) == PARSER_FIXED_LEN[vec["name"]]
+]
 
 
-@pytest.mark.parametrize("vec", _ACCEPTED_PARSE, ids=lambda v: v["name"])
-def test_parser_tolerates_appended_bytes(vec: dict[str, Any]) -> None:
-    """A newer slice may append fields; the fixed prefix still parses the same."""
+def test_every_parser_has_a_fixed_length_vector() -> None:
+    assert {vec["name"] for vec in _FIXED_LEN_PARSE} == set(PARSER_FIXED_LEN)
+
+
+@pytest.mark.parametrize("vec", _FIXED_LEN_PARSE, ids=lambda v: v["name"])
+def test_parser_length_rule_mirrors_c(vec: dict[str, Any]) -> None:
     parser = getattr(bcc, vec["name"])
     payload = bytes.fromhex(vec["payload"])
-    assert parser(payload + b"\xff\x00") == parser(payload)
+    if vec["name"] in EXACT_LENGTH_PARSERS:
+        with pytest.raises(ValueError):
+            parser(payload + b"\xff")
+    else:
+        assert parser(payload + b"\xff\x00") == parser(payload)
 
 
-@pytest.mark.parametrize("vec", _ACCEPTED_PARSE, ids=lambda v: v["name"])
+@pytest.mark.parametrize("vec", _FIXED_LEN_PARSE, ids=lambda v: v["name"])
 def test_parser_rejects_every_shorter_length(vec: dict[str, Any]) -> None:
     parser = getattr(bcc, vec["name"])
     payload = bytes.fromhex(vec["payload"])

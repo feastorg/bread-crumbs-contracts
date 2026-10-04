@@ -10,7 +10,7 @@ that asks the slice to build that reply.
 import struct
 from dataclasses import dataclass
 
-from ._wire import i16, require_len, u8, u16
+from ._wire import i16, require_min_len, u8, u16
 from .bread_caps import BREAD_OP_GET_CAPS
 from .bread_version_helpers import BREAD_OP_GET_VERSION
 from .bread_watchdog import BREAD_OP_GET_WATCHDOG
@@ -205,8 +205,12 @@ def rlht_query_watchdog() -> bytes:
 
 
 def rlht_parse_state_payload(payload: bytes) -> RlhtStateResult:
-    """Parse a GET_STATE reply payload (``rlht_parse_state_payload``)."""
-    require_len("RLHT GET_STATE", payload, RLHT_STATE_FIXED_LEN)
+    """Parse a GET_STATE reply payload (``rlht_parse_state_payload``).
+
+    Like the C parser, this reads the fixed 19-byte prefix and ignores any
+    trailing bytes; a shorter payload is rejected.
+    """
+    require_min_len("RLHT GET_STATE", payload, RLHT_STATE_FIXED_LEN)
     (mode, flags, t1, t2, sp1, sp2, on1, on2, period1, period2, tc_select) = _STATE.unpack_from(
         payload
     )

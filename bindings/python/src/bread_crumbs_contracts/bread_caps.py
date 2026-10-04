@@ -3,7 +3,7 @@
 import struct
 from dataclasses import dataclass
 
-from ._wire import require_len
+from ._wire import require_min_len
 
 __all__ = [
     "BREAD_CAPS_SCHEMA_V1",
@@ -56,7 +56,11 @@ class BreadCapsResult:
 
 
 def bread_caps_parse_payload(payload: bytes) -> BreadCapsResult:
-    """Parse a GET_CAPS reply payload (``bread_caps_parse_payload``)."""
-    require_len("GET_CAPS", payload, BREAD_CAPS_V1_PAYLOAD_LEN)
+    """Parse a GET_CAPS reply payload (``bread_caps_parse_payload``).
+
+    Like the C parser, this reads the 6-byte v1 prefix and ignores any
+    trailing bytes; a shorter payload is rejected.
+    """
+    require_min_len("GET_CAPS", payload, BREAD_CAPS_V1_PAYLOAD_LEN)
     schema, level, flags = _CAPS_V1.unpack_from(payload)
     return BreadCapsResult(schema, level, flags)

@@ -12,8 +12,11 @@
   `dcmt_parse_state_payload()`, `bread_caps_parse_payload()`,
   `bread_watchdog_parse_payload()`, `bread_parse_version()`) returning a
   frozen dataclass, and every `#define` constant. Encoders raise
-  `ValueError` on out-of-range arguments; parsers reject short payloads and
-  accept appended bytes.
+  `ValueError` on out-of-range arguments; each parser applies the length
+  rule of its C namesake (`dcmt_parse_state_payload()` and
+  `bread_watchdog_parse_payload()` require the exact length, the others
+  read a fixed prefix and ignore trailing bytes) until #18 makes the rule
+  uniform.
 - Added `tests/golden_vectors/gen_vectors.c`, built with the test targets as
   `bread_contracts_gen_vectors`, which calls every C send helper through a
   capturing write function and every C parser on known replies and writes

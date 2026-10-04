@@ -14,7 +14,10 @@ of the payload layouts (#18) must reproduce byte for byte.
   `CRUMBS_CMD_SET_REPLY` frame whose payload names the requested opcode.
 - `parse`: one record per call of a payload parser on a known reply: the
   payload, the C return code, and the parsed fields (`null` when the parser
-  rejected the payload, which the short-payload records exercise).
+  rejected the payload). Every parser has short, empty and one-byte-over-long
+  records, so the file states each parser's length rule as the C applies it
+  today: `dcmt_parse_state_payload()` and `bread_watchdog_parse_payload()`
+  reject the trailing byte, the others ignore it (#18 makes this uniform).
 
 ## Regenerating
 

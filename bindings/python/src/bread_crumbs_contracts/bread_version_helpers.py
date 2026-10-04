@@ -3,7 +3,7 @@
 import struct
 from dataclasses import dataclass
 
-from ._wire import require_len
+from ._wire import require_min_len
 
 __all__ = [
     "BREAD_MIN_CRUMBS_VERSION",
@@ -44,8 +44,12 @@ class BreadVersionResult:
 
 
 def bread_parse_version(payload: bytes) -> BreadVersionResult:
-    """Parse a version reply payload (``bread_parse_version``)."""
-    require_len("version", payload, BREAD_VERSION_PAYLOAD_LEN)
+    """Parse a version reply payload (``bread_parse_version``).
+
+    Like the C parser, this reads the 5-byte prefix and ignores any
+    trailing bytes; a shorter payload is rejected.
+    """
+    require_min_len("version", payload, BREAD_VERSION_PAYLOAD_LEN)
     crumbs_ver, mod_major, mod_minor, mod_patch = _VERSION.unpack_from(payload)
     return BreadVersionResult(crumbs_ver, mod_major, mod_minor, mod_patch)
 

@@ -10,7 +10,7 @@ that asks the slice to build that reply.
 import struct
 from dataclasses import dataclass
 
-from ._wire import i16, require_len, u8, u16
+from ._wire import i16, require_exact_len, u8, u16
 from .bread_caps import BREAD_OP_GET_CAPS
 from .bread_version_helpers import BREAD_OP_GET_VERSION
 from .bread_watchdog import BREAD_OP_GET_WATCHDOG
@@ -205,6 +205,10 @@ def dcmt_query_watchdog() -> bytes:
 
 
 def dcmt_parse_state_payload(payload: bytes) -> DcmtStateResult:
-    """Parse a GET_STATE reply payload (``dcmt_parse_state_payload``)."""
-    require_len("DCMT GET_STATE", payload, DCMT_STATE_FIXED_LEN)
+    """Parse a GET_STATE reply payload (``dcmt_parse_state_payload``).
+
+    Like the C parser, this rejects any length other than
+    ``DCMT_STATE_FIXED_LEN``, trailing bytes included.
+    """
+    require_exact_len("DCMT GET_STATE", payload, DCMT_STATE_FIXED_LEN)
     return DcmtStateResult(*_STATE.unpack_from(payload))

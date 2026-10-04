@@ -10,7 +10,7 @@ advertised per type by a capability flag (``RLHT_CAP_CMD_WATCHDOG``,
 import struct
 from dataclasses import dataclass
 
-from ._wire import require_len
+from ._wire import require_exact_len
 
 __all__ = [
     "BREAD_OP_GET_WATCHDOG",
@@ -56,7 +56,11 @@ class BreadWatchdogResult:
 
 
 def bread_watchdog_parse_payload(payload: bytes) -> BreadWatchdogResult:
-    """Parse a GET_WATCHDOG reply payload (``bread_watchdog_parse_payload``)."""
-    require_len("GET_WATCHDOG", payload, BREAD_WATCHDOG_FIXED_LEN)
+    """Parse a GET_WATCHDOG reply payload (``bread_watchdog_parse_payload``).
+
+    Like the C parser, this rejects any length other than
+    ``BREAD_WATCHDOG_FIXED_LEN``, trailing bytes included.
+    """
+    require_exact_len("GET_WATCHDOG", payload, BREAD_WATCHDOG_FIXED_LEN)
     armed, timeout_ms, tripped, trip_count = _WATCHDOG.unpack_from(payload)
     return BreadWatchdogResult(armed, timeout_ms, tripped, trip_count)

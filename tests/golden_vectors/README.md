@@ -7,7 +7,10 @@ of the payload layouts (#18) must reproduce byte for byte.
 
 ## Contents
 
-- `constants`: every numeric `#define` the codec exports, with its value.
+- `constants`: every value `#define` in `include/bread/*.h`, with its
+  compiled value. The Python tests fail on a header define that is missing
+  here or from the package's exports, so a new constant needs an entry in
+  `emit_constants()` and a Python name.
 - `encode`: one record per call of a `*_send_*` or `*_query_*` helper: the
   arguments, the type id and opcode of the frame it wrote (with the macro
   names), and the payload bytes as lowercase hex. Query helpers write a

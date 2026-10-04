@@ -6,6 +6,13 @@ cmake-build-*/
 # PlatformIO
 .pio/
 
+# Python
+.venv/
+dist/
+__pycache__/
+.pytest_cache/
+.ruff_cache/
+
 # Compiled objects
 *.o
 *.obj

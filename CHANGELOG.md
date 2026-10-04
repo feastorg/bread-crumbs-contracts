@@ -2,6 +2,31 @@
 
 ## [Unreleased]
 
+### Added
+
+- Added a pure-Python codec for the contracts (#20) in `bindings/python`,
+  distributed as `bread-crumbs-contracts` (import `bread_crumbs_contracts`),
+  Python 3.11+, no runtime dependencies. One module per header, named after
+  the C helpers: an encoder per `*_send_*` and `*_query_*` helper returning
+  the payload bytes, a parser per reply (`rlht_parse_state_payload()`,
+  `dcmt_parse_state_payload()`, `bread_caps_parse_payload()`,
+  `bread_watchdog_parse_payload()`, `bread_parse_version()`) returning a
+  frozen dataclass, and every `#define` constant. Encoders raise
+  `ValueError` on out-of-range arguments; each parser applies the length
+  rule of its C namesake (`dcmt_parse_state_payload()` and
+  `bread_watchdog_parse_payload()` require the exact length, the others
+  read a fixed prefix and ignore trailing bytes) until #18 makes the rule
+  uniform.
+- Added `tests/golden_vectors/gen_vectors.c`, built with the test targets as
+  `bread_contracts_gen_vectors`, which calls every C send helper through a
+  capturing write function and every C parser on known replies and writes
+  the tracked `tests/golden_vectors/vectors.json`. The Python tests check
+  every constant, encoder and parser against it, and fail on a header
+  opcode or a Python codec function with no vector.
+- CI gained a `golden-vectors` job that regenerates `vectors.json` and
+  fails on any difference, and a `python` job that runs ruff, pyright and
+  pytest through uv.
+
 ### Changed
 
 - CI and release workflows now build against CRUMBS `0.14.0` and linux-wire

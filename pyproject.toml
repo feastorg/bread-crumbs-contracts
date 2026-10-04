@@ -1,0 +1,66 @@
+[project]
+name = "bread-crumbs-contracts"
+version = "0.4.5"
+description = "Pure-Python codec for the BREAD CRUMBS operation contracts (RLHT, DCMT, caps, watchdog, version)"
+readme = "README.md"
+requires-python = ">=3.11"
+license = "AGPL-3.0-or-later"
+license-files = ["LICENSE"]
+authors = [{ name = "Cameron K. Brooks" }]
+maintainers = [{ name = "Cameron K. Brooks", email = "cambrooks3393@gmail.com" }]
+keywords = ["crumbs", "i2c", "bread", "contracts"]
+classifiers = [
+    "Development Status :: 3 - Alpha",
+    "Intended Audience :: Developers",
+    "Operating System :: OS Independent",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3 :: Only",
+    "Topic :: System :: Hardware",
+    "Typing :: Typed",
+]
+dependencies = []
+
+[project.urls]
+Repository = "https://github.com/feastorg/bread-crumbs-contracts"
+Changelog = "https://github.com/feastorg/bread-crumbs-contracts/blob/main/CHANGELOG.md"
+
+[build-system]
+requires = ["uv_build>=0.11,<0.13"]
+build-backend = "uv_build"
+
+[tool.uv]
+# Keep in step with build-system.requires. CI's setup-uv installs the newest
+# uv in this range, so the release build uses a backend inside the pin.
+required-version = ">=0.11,<0.13"
+
+[tool.uv.build-backend]
+module-name = "bread_crumbs_contracts"
+module-root = "bindings/python/src"
+
+[dependency-groups]
+dev = [
+    "pyright>=1.1",
+    "pytest>=8",
+    "ruff>=0.14",
+]
+
+[tool.ruff]
+line-length = 100
+target-version = "py311"
+include = ["pyproject.toml", "bindings/python/**/*.py"]
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP", "B"]
+
+[tool.ruff.lint.isort]
+known-first-party = ["bread_crumbs_contracts"]
+known-local-folder = ["vectors"]
+
+[tool.pyright]
+include = ["bindings/python"]
+strict = ["bindings/python/src"]
+pythonVersion = "3.11"
+
+[tool.pytest.ini_options]
+testpaths = ["bindings/python/tests"]
+addopts = "-q"

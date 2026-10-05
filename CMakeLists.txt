@@ -33,6 +33,20 @@ if(BREAD_CONTRACTS_BUILD_TESTS)
         add_test(NAME bread_contracts_compile_smoke COMMAND bread_contracts_compile_smoke)
     endif()
 
+    # One round-trip test per family: each SET through its wrapper and the
+    # Slice-side unpack, each GET reply through the Slice-side pack and the
+    # getter, with the bytes on the wire pinned.
+    foreach(family rlht)
+        add_executable(bread_contracts_${family}_roundtrip tests/payload_roundtrip/${family}_roundtrip.c)
+        target_link_libraries(bread_contracts_${family}_roundtrip PRIVATE bread::contracts)
+        if(CMAKE_C_COMPILER_ID MATCHES "GNU|Clang")
+            target_compile_options(bread_contracts_${family}_roundtrip PRIVATE -Wall -Wextra -Wpedantic -Werror)
+        endif()
+        if(BUILD_TESTING)
+            add_test(NAME bread_contracts_${family}_roundtrip COMMAND bread_contracts_${family}_roundtrip)
+        endif()
+    endforeach()
+
     # Writes tests/golden_vectors/vectors.json from the real headers; CI
     # regenerates the file and fails on any difference.
     add_executable(bread_contracts_gen_vectors tests/golden_vectors/gen_vectors.c)

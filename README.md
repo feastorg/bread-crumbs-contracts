@@ -97,6 +97,7 @@ Ensure CRUMBS headers are also on include path, since contract headers depend on
 
 - `crumbs.h`
 - `crumbs_message_helpers.h`
+- `crumbs_ops.h` (CRUMBS 0.14.0 or newer; needs C11 or C++11)
 - `crumbs_version.h`
 
 ## Python Codec

@@ -47,6 +47,24 @@ if(BREAD_CONTRACTS_BUILD_TESTS)
         endif()
     endforeach()
 
+    # The Slice firmware and the C++ controllers include these headers as
+    # C++11; build the smoke test that way too when a C++ compiler exists.
+    include(CheckLanguage)
+    check_language(CXX)
+    if(CMAKE_CXX_COMPILER)
+        enable_language(CXX)
+        add_executable(bread_contracts_compile_smoke_cxx tests/compile_smoke/smoke_cxx.cpp)
+        target_link_libraries(bread_contracts_compile_smoke_cxx PRIVATE bread::contracts)
+        set_target_properties(bread_contracts_compile_smoke_cxx PROPERTIES
+            CXX_STANDARD 11 CXX_STANDARD_REQUIRED ON CXX_EXTENSIONS OFF)
+        if(CMAKE_CXX_COMPILER_ID MATCHES "GNU|Clang")
+            target_compile_options(bread_contracts_compile_smoke_cxx PRIVATE -Wall -Wextra -Werror)
+        endif()
+        if(BUILD_TESTING)
+            add_test(NAME bread_contracts_compile_smoke_cxx COMMAND bread_contracts_compile_smoke_cxx)
+        endif()
+    endif()
+
     # Writes tests/golden_vectors/vectors.json from the real headers; CI
     # regenerates the file and fails on any difference.
     add_executable(bread_contracts_gen_vectors tests/golden_vectors/gen_vectors.c)

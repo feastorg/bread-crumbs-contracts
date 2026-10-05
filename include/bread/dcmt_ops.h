@@ -3,6 +3,7 @@
 
 #include "crumbs.h"
 #include "crumbs_message_helpers.h"
+#include "crumbs_ops.h"
 #include "bread_caps.h"
 #include "bread_watchdog.h"
 
@@ -11,19 +12,50 @@ extern "C"
 {
 #endif
 
-#define DCMT_TYPE_ID 0x02
+/*
+ * Type and opcodes, declared once: the build fails on a duplicate opcode,
+ * an opcode above 0xFF or equal to 0xFE, or a type of 0x00. Each payload
+ * layout is declared once below and packed and unpacked through the
+ * generated codec, by the wrappers here and by the Slice firmware.
+ */
+#define DCMT_OPS(X)                                                      \
+    X(DCMT_OP_SET_OPEN_LOOP, 0x01) /* dcmt_set_open_loop, 4 bytes */     \
+    X(DCMT_OP_SET_BRAKE, 0x02)     /* dcmt_set_brake, 2 bytes */         \
+    X(DCMT_OP_SET_MODE, 0x03)      /* dcmt_set_mode, 1 byte */           \
+    X(DCMT_OP_SET_SETPOINT, 0x04)  /* dcmt_set_setpoint, 4 bytes */      \
+    X(DCMT_OP_SET_PID, 0x05)       /* dcmt_set_pid, 6 bytes */           \
+    X(DCMT_OP_GET_STATE, 0x80)     /* reply dcmt_state, 19 bytes */
+CRUMBS_DEFINE_FAMILY(DCMT, 0x02, DCMT_OPS)
 
 #define DCMT_MODULE_VER_MAJOR 1
 #define DCMT_MODULE_VER_MINOR 0
 #define DCMT_MODULE_VER_PATCH 0
 
-#define DCMT_OP_SET_OPEN_LOOP 0x01
-#define DCMT_OP_SET_BRAKE 0x02
-#define DCMT_OP_SET_MODE 0x03
-#define DCMT_OP_SET_SETPOINT 0x04
-#define DCMT_OP_SET_PID 0x05
+/* SET_OPEN_LOOP: [m1_pwm:i16][m2_pwm:i16] */
+#define DCMT_SET_OPEN_LOOP_FIELDS(X) X(i16, m1_pwm) X(i16, m2_pwm)
+CRUMBS_DEFINE_PAYLOAD(dcmt_set_open_loop, 4, DCMT_SET_OPEN_LOOP_FIELDS)
 
-#define DCMT_OP_GET_STATE 0x80
+/* SET_BRAKE: [m1_brake:u8][m2_brake:u8] */
+#define DCMT_SET_BRAKE_FIELDS(X) X(u8, m1_brake) X(u8, m2_brake)
+CRUMBS_DEFINE_PAYLOAD(dcmt_set_brake, 2, DCMT_SET_BRAKE_FIELDS)
+
+/* SET_MODE: [mode:u8] (DCMT_MODE_*) */
+#define DCMT_SET_MODE_FIELDS(X) X(u8, mode)
+CRUMBS_DEFINE_PAYLOAD(dcmt_set_mode, 1, DCMT_SET_MODE_FIELDS)
+
+/* SET_SETPOINT: [target1:i16][target2:i16] */
+#define DCMT_SET_SETPOINT_FIELDS(X) X(i16, target1) X(i16, target2)
+CRUMBS_DEFINE_PAYLOAD(dcmt_set_setpoint, 4, DCMT_SET_SETPOINT_FIELDS)
+
+/* SET_PID: [kp1][ki1][kd1][kp2][ki2][kd2], each u8, gain x10 */
+#define DCMT_SET_PID_FIELDS(X) \
+    X(u8, kp1_x10)             \
+    X(u8, ki1_x10)             \
+    X(u8, kd1_x10)             \
+    X(u8, kp2_x10)             \
+    X(u8, ki2_x10)             \
+    X(u8, kd2_x10)
+CRUMBS_DEFINE_PAYLOAD(dcmt_set_pid, 6, DCMT_SET_PID_FIELDS)
 
 // Fixed GET_STATE payload layout (19 bytes):
 // [mode:u8][m1_pwm:i16][m2_pwm:i16][sp1:i16][sp2:i16]
@@ -35,6 +67,25 @@ extern "C"
 //     sp1/sp2  -> BREAD_INVALID_I16 when mode == DCMT_MODE_OPEN_LOOP
 //     spd1/spd2 -> BREAD_INVALID_I16 unless mode == DCMT_MODE_CLOSED_SPEED
 // Use BREAD_IS_VALID_I16() before consuming sentinel-eligible fields.
+#define DCMT_STATE_FIELDS(X)                                                     \
+    X(u8, mode)    /* DCMT_MODE_* */                                             \
+    X(i16, m1_pwm) /* current PWM output, always valid */                        \
+    X(i16, m2_pwm)                                                               \
+    X(i16, sp1)    /* active setpoint; BREAD_INVALID_I16 in OPEN_LOOP */         \
+    X(i16, sp2)                                                                  \
+    X(i16, pos1)   /* encoder position; always populated */                      \
+    X(i16, pos2)                                                                 \
+    X(i16, spd1)   /* tachometer speed; BREAD_INVALID_I16 unless CLOSED_SPEED */ \
+    X(i16, spd2)                                                                 \
+    X(u8, brakes)                                                                \
+    X(u8, estop)
+CRUMBS_DEFINE_PAYLOAD(dcmt_state, 19, DCMT_STATE_FIELDS)
+
+/* The parser's result is the payload struct itself. */
+typedef dcmt_state_t dcmt_state_result_t;
+
+/* Byte offsets of the GET_STATE fields, for code that reads the payload
+   directly; tests/payload_roundtrip checks each against dcmt_state_pack(). */
 #define DCMT_STATE_OFF_MODE 0
 #define DCMT_STATE_OFF_M1_PWM 1
 #define DCMT_STATE_OFF_M2_PWM 3
@@ -47,6 +98,8 @@ extern "C"
 #define DCMT_STATE_OFF_BRAKES 17
 #define DCMT_STATE_OFF_ESTOP 18
 #define DCMT_STATE_FIXED_LEN 19
+CRUMBS_STATIC_ASSERT(DCMT_STATE_FIXED_LEN == dcmt_state_wire_size,
+                     "DCMT_STATE_FIXED_LEN must equal the dcmt_state field list");
 
 #define DCMT_MODE_OPEN_LOOP 0x00
 #define DCMT_MODE_CLOSED_POSITION 0x01
@@ -81,46 +134,62 @@ static inline int dcmt_validate_query_device(const crumbs_device_t *dev)
     return 0;
 }
 
+/*
+ * SET wrappers keep their scalar parameters and pack through the payload
+ * struct, so the bytes come from the same field list the Slice unpacks.
+ */
 static inline int dcmt_send_set_open_loop(const crumbs_device_t *dev, int16_t m1_pwm, int16_t m2_pwm)
 {
     crumbs_message_t msg;
+    dcmt_set_open_loop_t v;
     if (dcmt_validate_write_device(dev) != 0)
         return -1;
+    v.m1_pwm = m1_pwm;
+    v.m2_pwm = m2_pwm;
     crumbs_msg_init(&msg, DCMT_TYPE_ID, DCMT_OP_SET_OPEN_LOOP);
-    crumbs_msg_add_i16(&msg, m1_pwm);
-    crumbs_msg_add_i16(&msg, m2_pwm);
+    if (dcmt_set_open_loop_pack(&msg, &v) != 0)
+        return -1;
     return crumbs_controller_send(dev->ctx, dev->addr, &msg, dev->write_fn, dev->io);
 }
 
 static inline int dcmt_send_set_brake(const crumbs_device_t *dev, uint8_t m1_brake, uint8_t m2_brake)
 {
     crumbs_message_t msg;
+    dcmt_set_brake_t v;
     if (dcmt_validate_write_device(dev) != 0)
         return -1;
+    v.m1_brake = m1_brake;
+    v.m2_brake = m2_brake;
     crumbs_msg_init(&msg, DCMT_TYPE_ID, DCMT_OP_SET_BRAKE);
-    crumbs_msg_add_u8(&msg, m1_brake);
-    crumbs_msg_add_u8(&msg, m2_brake);
+    if (dcmt_set_brake_pack(&msg, &v) != 0)
+        return -1;
     return crumbs_controller_send(dev->ctx, dev->addr, &msg, dev->write_fn, dev->io);
 }
 
 static inline int dcmt_send_set_mode(const crumbs_device_t *dev, uint8_t mode)
 {
     crumbs_message_t msg;
+    dcmt_set_mode_t v;
     if (dcmt_validate_write_device(dev) != 0)
         return -1;
+    v.mode = mode;
     crumbs_msg_init(&msg, DCMT_TYPE_ID, DCMT_OP_SET_MODE);
-    crumbs_msg_add_u8(&msg, mode);
+    if (dcmt_set_mode_pack(&msg, &v) != 0)
+        return -1;
     return crumbs_controller_send(dev->ctx, dev->addr, &msg, dev->write_fn, dev->io);
 }
 
 static inline int dcmt_send_set_setpoint(const crumbs_device_t *dev, int16_t target1, int16_t target2)
 {
     crumbs_message_t msg;
+    dcmt_set_setpoint_t v;
     if (dcmt_validate_write_device(dev) != 0)
         return -1;
+    v.target1 = target1;
+    v.target2 = target2;
     crumbs_msg_init(&msg, DCMT_TYPE_ID, DCMT_OP_SET_SETPOINT);
-    crumbs_msg_add_i16(&msg, target1);
-    crumbs_msg_add_i16(&msg, target2);
+    if (dcmt_set_setpoint_pack(&msg, &v) != 0)
+        return -1;
     return crumbs_controller_send(dev->ctx, dev->addr, &msg, dev->write_fn, dev->io);
 }
 
@@ -129,15 +198,18 @@ static inline int dcmt_send_set_pid(const crumbs_device_t *dev,
                                     uint8_t kp2_x10, uint8_t ki2_x10, uint8_t kd2_x10)
 {
     crumbs_message_t msg;
+    dcmt_set_pid_t v;
     if (dcmt_validate_write_device(dev) != 0)
         return -1;
+    v.kp1_x10 = kp1_x10;
+    v.ki1_x10 = ki1_x10;
+    v.kd1_x10 = kd1_x10;
+    v.kp2_x10 = kp2_x10;
+    v.ki2_x10 = ki2_x10;
+    v.kd2_x10 = kd2_x10;
     crumbs_msg_init(&msg, DCMT_TYPE_ID, DCMT_OP_SET_PID);
-    crumbs_msg_add_u8(&msg, kp1_x10);
-    crumbs_msg_add_u8(&msg, ki1_x10);
-    crumbs_msg_add_u8(&msg, kd1_x10);
-    crumbs_msg_add_u8(&msg, kp2_x10);
-    crumbs_msg_add_u8(&msg, ki2_x10);
-    crumbs_msg_add_u8(&msg, kd2_x10);
+    if (dcmt_set_pid_pack(&msg, &v) != 0)
+        return -1;
     return crumbs_controller_send(dev->ctx, dev->addr, &msg, dev->write_fn, dev->io);
 }
 
@@ -201,21 +273,6 @@ typedef struct
 
 typedef struct
 {
-    uint8_t  mode;    /* DCMT_MODE_* */
-    int16_t  m1_pwm;  /* current PWM output, always valid */
-    int16_t  m2_pwm;
-    int16_t  sp1;     /* active setpoint; BREAD_INVALID_I16 in OPEN_LOOP */
-    int16_t  sp2;
-    int16_t  pos1;    /* encoder position; always populated */
-    int16_t  pos2;
-    int16_t  spd1;    /* tachometer speed; BREAD_INVALID_I16 unless CLOSED_SPEED */
-    int16_t  spd2;
-    uint8_t  brakes;
-    uint8_t  estop;
-} dcmt_state_result_t;
-
-typedef struct
-{
     uint8_t schema;
     uint8_t level;
     uint32_t flags;
@@ -226,48 +283,18 @@ typedef struct
  * Parse a DCMT GET_STATE payload into a state result. Shared by
  * dcmt_get_state() and by controllers that run the query round-trip through
  * their own transport (retry/locking/timing) and only need the wire layout.
+ * The payload must be exactly DCMT_STATE_FIXED_LEN bytes; anything else
+ * returns -1 and leaves out untouched.
  */
 static inline int dcmt_parse_state_payload(const uint8_t *data, uint8_t data_len, dcmt_state_result_t *out)
 {
-    int rc;
-
     if (!data || !out)
         return -1;
 
     if (data_len != DCMT_STATE_FIXED_LEN)
         return -1;
 
-    rc = crumbs_msg_read_u8(data, data_len, DCMT_STATE_OFF_MODE, &out->mode);
-    if (rc != 0)
-        return rc;
-    rc = crumbs_msg_read_i16(data, data_len, DCMT_STATE_OFF_M1_PWM, &out->m1_pwm);
-    if (rc != 0)
-        return rc;
-    rc = crumbs_msg_read_i16(data, data_len, DCMT_STATE_OFF_M2_PWM, &out->m2_pwm);
-    if (rc != 0)
-        return rc;
-    rc = crumbs_msg_read_i16(data, data_len, DCMT_STATE_OFF_SP1, &out->sp1);
-    if (rc != 0)
-        return rc;
-    rc = crumbs_msg_read_i16(data, data_len, DCMT_STATE_OFF_SP2, &out->sp2);
-    if (rc != 0)
-        return rc;
-    rc = crumbs_msg_read_i16(data, data_len, DCMT_STATE_OFF_POS1, &out->pos1);
-    if (rc != 0)
-        return rc;
-    rc = crumbs_msg_read_i16(data, data_len, DCMT_STATE_OFF_POS2, &out->pos2);
-    if (rc != 0)
-        return rc;
-    rc = crumbs_msg_read_i16(data, data_len, DCMT_STATE_OFF_SPD1, &out->spd1);
-    if (rc != 0)
-        return rc;
-    rc = crumbs_msg_read_i16(data, data_len, DCMT_STATE_OFF_SPD2, &out->spd2);
-    if (rc != 0)
-        return rc;
-    rc = crumbs_msg_read_u8(data, data_len, DCMT_STATE_OFF_BRAKES, &out->brakes);
-    if (rc != 0)
-        return rc;
-    return crumbs_msg_read_u8(data, data_len, DCMT_STATE_OFF_ESTOP, &out->estop);
+    return dcmt_state_unpack(data, data_len, out);
 }
 
 static inline int dcmt_get_state(const crumbs_device_t *dev, dcmt_state_result_t *out)

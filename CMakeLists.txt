@@ -36,7 +36,7 @@ if(BREAD_CONTRACTS_BUILD_TESTS)
     # One round-trip test per family: each SET through its wrapper and the
     # Slice-side unpack, each GET reply through the Slice-side pack and the
     # getter, with the bytes on the wire pinned.
-    foreach(family rlht)
+    foreach(family rlht dcmt)
         add_executable(bread_contracts_${family}_roundtrip tests/payload_roundtrip/${family}_roundtrip.c)
         target_link_libraries(bread_contracts_${family}_roundtrip PRIVATE bread::contracts)
         if(CMAKE_C_COMPILER_ID MATCHES "GNU|Clang")

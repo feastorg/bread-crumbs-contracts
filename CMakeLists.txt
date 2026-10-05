@@ -10,7 +10,7 @@ endif()
 option(BREAD_CONTRACTS_BUILD_TESTS "Build bread-crumbs-contracts test targets" ${BREAD_CONTRACTS_TOP_LEVEL})
 
 if(NOT TARGET crumbs AND NOT TARGET crumbs::crumbs)
-    find_package(crumbs CONFIG REQUIRED)
+    find_package(crumbs 0.14 CONFIG REQUIRED)
 endif()
 
 add_library(bread_crumbs_contracts INTERFACE)

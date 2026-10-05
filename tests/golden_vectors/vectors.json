@@ -12,7 +12,9 @@
     "BREAD_CAPS_V1_PAYLOAD_LEN": 6,
     "BREAD_OP_SET_WATCHDOG": 126,
     "BREAD_OP_GET_WATCHDOG": 125,
+    "BREAD_OP_CLEAR_WATCHDOG_TRIP": 124,
     "BREAD_WATCHDOG_SET_PAYLOAD_LEN": 2,
+    "BREAD_WATCHDOG_CLEAR_TRIP_PAYLOAD_LEN": 0,
     "BREAD_WATCHDOG_OFF_ARMED": 0,
     "BREAD_WATCHDOG_OFF_TIMEOUT_MS": 1,
     "BREAD_WATCHDOG_OFF_TRIPPED": 3,
@@ -45,6 +47,7 @@
     "RLHT_CAP_TC_SELECT": 16,
     "RLHT_CAP_OPEN_DUTY_CONTROL": 32,
     "RLHT_CAP_CMD_WATCHDOG": 64,
+    "RLHT_CAP_CLEAR_WATCHDOG_TRIP": 128,
     "RLHT_CAP_BASELINE_FLAGS": 63,
     "DCMT_TYPE_ID": 2,
     "DCMT_MODULE_VER_MAJOR": 1,
@@ -80,6 +83,7 @@
     "DCMT_CAP_CLOSED_LOOP_SPEED": 8,
     "DCMT_CAP_PID_TUNING": 16,
     "DCMT_CAP_CMD_WATCHDOG": 32,
+    "DCMT_CAP_CLEAR_WATCHDOG_TRIP": 64,
     "DCMT_CAP_BASELINE_FLAGS": 3
   },
   "encode": [
@@ -291,6 +295,15 @@
       "payload": "ffff"
     },
     {
+      "name": "rlht_send_clear_watchdog_trip",
+      "args": {},
+      "type_id_name": "RLHT_TYPE_ID",
+      "type_id": 1,
+      "opcode_name": "BREAD_OP_CLEAR_WATCHDOG_TRIP",
+      "opcode": 124,
+      "payload": ""
+    },
+    {
       "name": "rlht_query_state",
       "args": {},
       "type_id_name": "CRUMBS_TYPE_ID_ANY",
@@ -496,6 +509,15 @@
       "opcode_name": "BREAD_OP_SET_WATCHDOG",
       "opcode": 126,
       "payload": "ffff"
+    },
+    {
+      "name": "dcmt_send_clear_watchdog_trip",
+      "args": {},
+      "type_id_name": "DCMT_TYPE_ID",
+      "type_id": 2,
+      "opcode_name": "BREAD_OP_CLEAR_WATCHDOG_TRIP",
+      "opcode": 124,
+      "payload": ""
     },
     {
       "name": "dcmt_query_state",

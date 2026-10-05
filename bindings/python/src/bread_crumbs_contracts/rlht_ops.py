@@ -17,6 +17,7 @@ from .bread_watchdog import BREAD_OP_GET_WATCHDOG
 
 __all__ = [
     "RLHT_CAP_BASELINE_FLAGS",
+    "RLHT_CAP_CLEAR_WATCHDOG_TRIP",
     "RLHT_CAP_CMD_WATCHDOG",
     "RLHT_CAP_LEVEL_1",
     "RLHT_CAP_LEVEL_2",
@@ -50,6 +51,7 @@ __all__ = [
     "rlht_query_state",
     "rlht_query_version",
     "rlht_query_watchdog",
+    "rlht_send_clear_watchdog_trip",
     "rlht_send_set_mode",
     "rlht_send_set_open_duty",
     "rlht_send_set_periods",
@@ -92,6 +94,10 @@ RLHT_CAP_PERIOD_CONTROL = 1 << 3
 RLHT_CAP_TC_SELECT = 1 << 4
 RLHT_CAP_OPEN_DUTY_CONTROL = 1 << 5
 RLHT_CAP_CMD_WATCHDOG = 1 << 6
+#: The watchdog trip latches until CLEAR_WATCHDOG_TRIP, a deliberate local
+#: operator command or reboot; SET_WATCHDOG no longer clears it. Without
+#: this flag, SET_WATCHDOG clears the trip.
+RLHT_CAP_CLEAR_WATCHDOG_TRIP = 1 << 7
 
 RLHT_CAP_BASELINE_FLAGS = (
     RLHT_CAP_MODE_CONTROL
@@ -182,6 +188,15 @@ def rlht_send_set_open_duty(duty1_pct: int, duty2_pct: int) -> bytes:
 def rlht_send_set_watchdog(timeout_ms: int) -> bytes:
     """``BREAD_OP_SET_WATCHDOG`` payload: ``[timeout_ms:u16]``, 0 = disarm."""
     return _U16.pack(u16("timeout_ms", timeout_ms))
+
+
+def rlht_send_clear_watchdog_trip() -> bytes:
+    """``BREAD_OP_CLEAR_WATCHDOG_TRIP`` payload: empty.
+
+    Send only when ``RLHT_CAP_CLEAR_WATCHDOG_TRIP`` is advertised, and only
+    on an operator's request.
+    """
+    return b""
 
 
 def rlht_query_state() -> bytes:

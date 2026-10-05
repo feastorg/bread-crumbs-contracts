@@ -38,6 +38,23 @@ int bread_contracts_smoke(void)
         ok += (BREAD_OP_GET_WATCHDOG == 0x7D) ? 0 : 1;
         ok += ((DCMT_CAP_CMD_WATCHDOG & DCMT_CAP_BASELINE_FLAGS) == 0u) ? 0 : 1;
         ok += ((RLHT_CAP_CMD_WATCHDOG & RLHT_CAP_BASELINE_FLAGS) == 0u) ? 0 : 1;
+        /* CLEAR_WATCHDOG_TRIP: its own opcode below the other shared ops,
+           and a cap bit that overlaps no other flag of its family. */
+        ok += (BREAD_OP_CLEAR_WATCHDOG_TRIP == 0x7C) ? 0 : 1;
+        ok += (BREAD_WATCHDOG_CLEAR_TRIP_PAYLOAD_LEN == 0) ? 0 : 1;
+        ok += ((DCMT_CAP_CLEAR_WATCHDOG_TRIP &
+                (DCMT_CAP_OPEN_LOOP_CONTROL | DCMT_CAP_BRAKE_CONTROL | DCMT_CAP_CLOSED_LOOP_POSITION |
+                 DCMT_CAP_CLOSED_LOOP_SPEED | DCMT_CAP_PID_TUNING | DCMT_CAP_CMD_WATCHDOG)) == 0u &&
+               DCMT_CAP_CLEAR_WATCHDOG_TRIP != 0u)
+                  ? 0
+                  : 1;
+        ok += ((RLHT_CAP_CLEAR_WATCHDOG_TRIP &
+                (RLHT_CAP_MODE_CONTROL | RLHT_CAP_SETPOINT_CONTROL | RLHT_CAP_PID_TUNING |
+                 RLHT_CAP_PERIOD_CONTROL | RLHT_CAP_TC_SELECT | RLHT_CAP_OPEN_DUTY_CONTROL |
+                 RLHT_CAP_CMD_WATCHDOG)) == 0u &&
+               RLHT_CAP_CLEAR_WATCHDOG_TRIP != 0u)
+                  ? 0
+                  : 1;
         ok += (bread_watchdog_build_reply(&wd_reply, DCMT_TYPE_ID, 1, 5000, 1, 3) == 0) ? 0 : 1;
         ok += (wd_reply.type_id == DCMT_TYPE_ID && wd_reply.opcode == BREAD_OP_GET_WATCHDOG) ? 0 : 1;
         ok += (wd_reply.data_len == BREAD_WATCHDOG_FIXED_LEN) ? 0 : 1;

@@ -39,6 +39,34 @@
 
 ### Added
 
+- `BREAD_OP_CLEAR_WATCHDOG_TRIP` (0x7C, empty payload,
+  `BREAD_WATCHDOG_CLEAR_TRIP_PAYLOAD_LEN` 0) in `bread_watchdog.h`, so
+  re-arming the watchdog and clearing a trip are separate operations
+  (feastorg/Slice_DCMT#26). It clears `tripped` and nothing else: it does
+  not arm, disarm or change the timeout, and `trip_count` is kept. Sent by
+  `dcmt_send_clear_watchdog_trip()` / `rlht_send_clear_watchdog_trip()`.
+- Capability flags `DCMT_CAP_CLEAR_WATCHDOG_TRIP` (bit 6) and
+  `RLHT_CAP_CLEAR_WATCHDOG_TRIP` (bit 7). Firmware that advertises one
+  latches the trip until `BREAD_OP_CLEAR_WATCHDOG_TRIP`, a deliberate
+  local operator command on the slice (firmware-defined, not any serial
+  input), or a reboot; `BREAD_OP_SET_WATCHDOG` and ordinary frames no
+  longer clear it there, and a non-empty CLEAR payload is rejected.
+  Firmware without the flag behaves as before: `BREAD_OP_SET_WATCHDOG`
+  and any other valid command frame clear the trip, so
+  `BREAD_OP_CLEAR_WATCHDOG_TRIP` must not be sent to it. The `tripped`
+  documentation in `bread_watchdog.h` says so. Opcode and payload bytes
+  are unchanged; `tests/golden_vectors/vectors.json` gains the new
+  constants and one send vector per family, and every existing record
+  is unchanged.
+- **Not purely additive for controllers:** on firmware that advertises
+  the new flag, `BREAD_OP_SET_WATCHDOG` no longer clears a trip, so a
+  controller that predates the flag (including released
+  anolis-provider-bread) cannot clear a trip remotely; only a reboot or
+  a local operator command does. Ship the controller release that
+  understands the flag with or before such firmware. The capabilities
+  Extension Policy records this exception.
+- The Python codec exports the new opcode, payload length, flags and
+  `dcmt_send_clear_watchdog_trip()` / `rlht_send_clear_watchdog_trip()`.
 - Generated payload structs and codecs for Slice firmware to unpack SETs
   and pack replies with: `rlht_set_mode`, `rlht_set_setpoints`,
   `rlht_set_pid`, `rlht_set_periods`, `rlht_set_tc_select`,

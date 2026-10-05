@@ -18,6 +18,7 @@ from .bread_watchdog import BREAD_OP_GET_WATCHDOG
 __all__ = [
     "DCMT_CAP_BASELINE_FLAGS",
     "DCMT_CAP_BRAKE_CONTROL",
+    "DCMT_CAP_CLEAR_WATCHDOG_TRIP",
     "DCMT_CAP_CLOSED_LOOP_POSITION",
     "DCMT_CAP_CLOSED_LOOP_SPEED",
     "DCMT_CAP_CMD_WATCHDOG",
@@ -57,6 +58,7 @@ __all__ = [
     "dcmt_query_state",
     "dcmt_query_version",
     "dcmt_query_watchdog",
+    "dcmt_send_clear_watchdog_trip",
     "dcmt_send_set_brake",
     "dcmt_send_set_mode",
     "dcmt_send_set_open_loop",
@@ -111,6 +113,10 @@ DCMT_CAP_CLOSED_LOOP_POSITION = 1 << 2
 DCMT_CAP_CLOSED_LOOP_SPEED = 1 << 3
 DCMT_CAP_PID_TUNING = 1 << 4
 DCMT_CAP_CMD_WATCHDOG = 1 << 5
+#: The watchdog trip latches until CLEAR_WATCHDOG_TRIP, a deliberate local
+#: operator command or reboot; SET_WATCHDOG no longer clears it. Without
+#: this flag, SET_WATCHDOG clears the trip.
+DCMT_CAP_CLEAR_WATCHDOG_TRIP = 1 << 6
 
 DCMT_CAP_BASELINE_FLAGS = DCMT_CAP_OPEN_LOOP_CONTROL | DCMT_CAP_BRAKE_CONTROL
 
@@ -182,6 +188,15 @@ def dcmt_send_set_pid(
 def dcmt_send_set_watchdog(timeout_ms: int) -> bytes:
     """``BREAD_OP_SET_WATCHDOG`` payload: ``[timeout_ms:u16]``, 0 = disarm."""
     return _U16.pack(u16("timeout_ms", timeout_ms))
+
+
+def dcmt_send_clear_watchdog_trip() -> bytes:
+    """``BREAD_OP_CLEAR_WATCHDOG_TRIP`` payload: empty.
+
+    Send only when ``DCMT_CAP_CLEAR_WATCHDOG_TRIP`` is advertised, and only
+    on an operator's request.
+    """
+    return b""
 
 
 def dcmt_query_state() -> bytes:

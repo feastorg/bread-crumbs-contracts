@@ -123,6 +123,12 @@ CRUMBS_STATIC_ASSERT(DCMT_STATE_FIXED_LEN == dcmt_state_wire_size,
 #define DCMT_CAP_CLOSED_LOOP_SPEED ((uint32_t)1u << 3)
 #define DCMT_CAP_PID_TUNING ((uint32_t)1u << 4)
 #define DCMT_CAP_CMD_WATCHDOG ((uint32_t)1u << 5)
+/* The watchdog trip latches until BREAD_OP_CLEAR_WATCHDOG_TRIP, a deliberate
+   local operator command on the slice (firmware-defined, not any serial
+   input), or reboot: SET_WATCHDOG and ordinary frames no longer clear it,
+   and CLEAR_WATCHDOG_TRIP is handled. Advertised only together with
+   DCMT_CAP_CMD_WATCHDOG. Without it, SET_WATCHDOG clears the trip. */
+#define DCMT_CAP_CLEAR_WATCHDOG_TRIP ((uint32_t)1u << 6)
 
 #define DCMT_CAP_BASELINE_FLAGS (DCMT_CAP_OPEN_LOOP_CONTROL | DCMT_CAP_BRAKE_CONTROL)
 
@@ -228,6 +234,17 @@ static inline int dcmt_send_set_watchdog(const crumbs_device_t *dev, uint16_t ti
         return -1;
     crumbs_msg_init(&msg, DCMT_TYPE_ID, BREAD_OP_SET_WATCHDOG);
     crumbs_msg_add_u16(&msg, timeout_ms);
+    return crumbs_controller_send(dev->ctx, dev->addr, &msg, dev->write_fn, dev->io);
+}
+
+/* Send only when DCMT_CAP_CLEAR_WATCHDOG_TRIP is advertised, and only on an
+   operator's request. Empty payload; clears the trip and nothing else. */
+static inline int dcmt_send_clear_watchdog_trip(const crumbs_device_t *dev)
+{
+    crumbs_message_t msg;
+    if (dcmt_validate_write_device(dev) != 0)
+        return -1;
+    crumbs_msg_init(&msg, DCMT_TYPE_ID, BREAD_OP_CLEAR_WATCHDOG_TRIP);
     return crumbs_controller_send(dev->ctx, dev->addr, &msg, dev->write_fn, dev->io);
 }
 

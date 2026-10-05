@@ -95,6 +95,21 @@ static dcmt_state_t distinct_state(void)
     return s;
 }
 
+static void test_clear_watchdog_trip(void)
+{
+    /* [type_id][opcode][data_len = 0][crc8]: no payload at all. */
+    static const uint8_t header[] = {0x02, 0x7C, 0x00};
+    static const uint8_t empty[1] = {0};
+
+    fake_bus_bind();
+    CHECK(dcmt_send_clear_watchdog_trip(&g_dev) == 0, "send clear_watchdog_trip");
+    CHECK(g_bus.writes == 1, "one frame written");
+    CHECK(fake_bus_sent(DCMT_TYPE_ID, BREAD_OP_CLEAR_WATCHDOG_TRIP, empty, 0), "clear_watchdog_trip decodes");
+    CHECK(g_bus.last_frame_len == sizeof header + 1 && memcmp(g_bus.last_frame, header, sizeof header) == 0,
+          "clear_watchdog_trip frame bytes");
+    CHECK(dcmt_send_clear_watchdog_trip(NULL) == -1, "NULL device is refused");
+}
+
 static void test_get_state(void)
 {
     static const uint8_t wire[19] = {
@@ -186,6 +201,7 @@ int main(void)
     test_set_mode();
     test_set_setpoint();
     test_set_pid();
+    test_clear_watchdog_trip();
     test_get_state();
     test_state_offsets();
     test_state_length_rule();

@@ -92,6 +92,21 @@ static void test_set_open_duty(void)
     CHECK(rx.duty1_pct == 35 && rx.duty2_pct == 100, "duty1, duty2");
 }
 
+static void test_clear_watchdog_trip(void)
+{
+    /* [type_id][opcode][data_len = 0][crc8]: no payload at all. */
+    static const uint8_t header[] = {0x01, 0x7C, 0x00};
+    static const uint8_t empty[1] = {0};
+
+    fake_bus_bind();
+    CHECK(rlht_send_clear_watchdog_trip(&g_dev) == 0, "send clear_watchdog_trip");
+    CHECK(g_bus.writes == 1, "one frame written");
+    CHECK(fake_bus_sent(RLHT_TYPE_ID, BREAD_OP_CLEAR_WATCHDOG_TRIP, empty, 0), "clear_watchdog_trip decodes");
+    CHECK(g_bus.last_frame_len == sizeof header + 1 && memcmp(g_bus.last_frame, header, sizeof header) == 0,
+          "clear_watchdog_trip frame bytes");
+    CHECK(rlht_send_clear_watchdog_trip(NULL) == -1, "NULL device is refused");
+}
+
 static void test_get_state(void)
 {
     /* Every field distinct, so a swapped or shifted field cannot pass. */
@@ -183,6 +198,7 @@ int main(void)
     test_set_periods();
     test_set_tc_select();
     test_set_open_duty();
+    test_clear_watchdog_trip();
     test_get_state();
     test_state_length_rule();
     if (g_failures)

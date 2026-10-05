@@ -37,9 +37,18 @@ capability flag (`DCMT_CAP_CMD_WATCHDOG`, `RLHT_CAP_CMD_WATCHDOG`):
 
 - `BREAD_OP_SET_WATCHDOG`: `[timeout_ms:u16]`, 0 = disarm (firmware boots disarmed)
 - `BREAD_OP_GET_WATCHDOG`: `[armed:u8][timeout_ms:u16][tripped:u8][trip_count:u8]`
+- `BREAD_OP_CLEAR_WATCHDOG_TRIP`: empty payload; clears `tripped` and nothing
+  else, gated by `DCMT_CAP_CLEAR_WATCHDOG_TRIP` / `RLHT_CAP_CLEAR_WATCHDOG_TRIP`
 
 While armed, any valid inbound frame refreshes it; expiry drives the slice's
-actuators to their safe state without touching estop.
+actuators to their safe state without touching estop. On firmware that
+advertises the `*_CAP_CLEAR_WATCHDOG_TRIP` flag the trip latches: only
+`BREAD_OP_CLEAR_WATCHDOG_TRIP`, a deliberate local operator command on the
+slice (firmware-defined, not any serial input), or a reboot clears it, and
+`BREAD_OP_SET_WATCHDOG` re-arms without clearing. On firmware without the
+flag, `BREAD_OP_SET_WATCHDOG` and any other valid command frame still clear
+it. A controller that predates the flag cannot clear a trip remotely on
+firmware that advertises it; see `docs/controller-compatibility.md`.
 
 ## Current Device Contracts
 

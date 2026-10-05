@@ -12,6 +12,8 @@
 typedef struct
 {
     crumbs_message_t last_write; /* decoded from the last frame written */
+    uint8_t last_frame[CRUMBS_MESSAGE_MAX_SIZE]; /* the last frame, as written */
+    size_t last_frame_len;
     int write_rc;
     int writes;
     uint8_t reply[CRUMBS_MESSAGE_MAX_SIZE]; /* served, padded, on read */
@@ -38,6 +40,8 @@ static int fake_bus_write(void *io, uint8_t addr, const uint8_t *data, size_t le
     fake_bus_t *b = (fake_bus_t *)io;
     (void)addr;
     b->writes++;
+    b->last_frame_len = len < sizeof b->last_frame ? len : sizeof b->last_frame;
+    memcpy(b->last_frame, data, b->last_frame_len);
     b->write_rc = crumbs_decode_message(data, len, &b->last_write, NULL);
     return 0;
 }

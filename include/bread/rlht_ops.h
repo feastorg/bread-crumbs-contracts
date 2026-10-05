@@ -108,6 +108,12 @@ CRUMBS_DEFINE_PAYLOAD(rlht_state, 19, RLHT_STATE_FIELDS)
 #define RLHT_CAP_TC_SELECT ((uint32_t)1u << 4)
 #define RLHT_CAP_OPEN_DUTY_CONTROL ((uint32_t)1u << 5)
 #define RLHT_CAP_CMD_WATCHDOG ((uint32_t)1u << 6)
+/* The watchdog trip latches until BREAD_OP_CLEAR_WATCHDOG_TRIP, a deliberate
+   local operator command on the slice (firmware-defined, not any serial
+   input), or reboot: SET_WATCHDOG and ordinary frames no longer clear it,
+   and CLEAR_WATCHDOG_TRIP is handled. Advertised only together with
+   RLHT_CAP_CMD_WATCHDOG. Without it, SET_WATCHDOG clears the trip. */
+#define RLHT_CAP_CLEAR_WATCHDOG_TRIP ((uint32_t)1u << 7)
 
 #define RLHT_CAP_BASELINE_FLAGS (RLHT_CAP_MODE_CONTROL | RLHT_CAP_SETPOINT_CONTROL | \
                                  RLHT_CAP_PID_TUNING | RLHT_CAP_PERIOD_CONTROL | \
@@ -261,6 +267,17 @@ static inline int rlht_send_set_watchdog(const crumbs_device_t *dev, uint16_t ti
         return -1;
     crumbs_msg_init(&msg, RLHT_TYPE_ID, BREAD_OP_SET_WATCHDOG);
     crumbs_msg_add_u16(&msg, timeout_ms);
+    return crumbs_controller_send(dev->ctx, dev->addr, &msg, dev->write_fn, dev->io);
+}
+
+/* Send only when RLHT_CAP_CLEAR_WATCHDOG_TRIP is advertised, and only on an
+   operator's request. Empty payload; clears the trip and nothing else. */
+static inline int rlht_send_clear_watchdog_trip(const crumbs_device_t *dev)
+{
+    crumbs_message_t msg;
+    if (rlht_validate_write_device(dev) != 0)
+        return -1;
+    crumbs_msg_init(&msg, RLHT_TYPE_ID, BREAD_OP_CLEAR_WATCHDOG_TRIP);
     return crumbs_controller_send(dev->ctx, dev->addr, &msg, dev->write_fn, dev->io);
 }
 

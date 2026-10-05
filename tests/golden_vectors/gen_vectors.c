@@ -142,7 +142,9 @@ static void emit_constants(void)
 
     CONST(BREAD_OP_SET_WATCHDOG);
     CONST(BREAD_OP_GET_WATCHDOG);
+    CONST(BREAD_OP_CLEAR_WATCHDOG_TRIP);
     CONST(BREAD_WATCHDOG_SET_PAYLOAD_LEN);
+    CONST(BREAD_WATCHDOG_CLEAR_TRIP_PAYLOAD_LEN);
     CONST(BREAD_WATCHDOG_OFF_ARMED);
     CONST(BREAD_WATCHDOG_OFF_TIMEOUT_MS);
     CONST(BREAD_WATCHDOG_OFF_TRIPPED);
@@ -177,6 +179,7 @@ static void emit_constants(void)
     CONST(RLHT_CAP_TC_SELECT);
     CONST(RLHT_CAP_OPEN_DUTY_CONTROL);
     CONST(RLHT_CAP_CMD_WATCHDOG);
+    CONST(RLHT_CAP_CLEAR_WATCHDOG_TRIP);
     CONST(RLHT_CAP_BASELINE_FLAGS);
 
     CONST(DCMT_TYPE_ID);
@@ -213,6 +216,7 @@ static void emit_constants(void)
     CONST(DCMT_CAP_CLOSED_LOOP_SPEED);
     CONST(DCMT_CAP_PID_TUNING);
     CONST(DCMT_CAP_CMD_WATCHDOG);
+    CONST(DCMT_CAP_CLEAR_WATCHDOG_TRIP);
     CONST(DCMT_CAP_BASELINE_FLAGS);
 
     fprintf(g_out, "\n  },\n");
@@ -315,6 +319,12 @@ static void vec_rlht_send_set_watchdog(uint16_t timeout_ms)
                 rlht_send_set_watchdog(&g_dev, timeout_ms));
 }
 
+static void vec_rlht_send_clear_watchdog_trip(void)
+{
+    emit_encode("rlht_send_clear_watchdog_trip", "", "RLHT_TYPE_ID", "BREAD_OP_CLEAR_WATCHDOG_TRIP",
+                rlht_send_clear_watchdog_trip(&g_dev));
+}
+
 static void vec_dcmt_send_set_open_loop(int16_t m1, int16_t m2)
 {
     char a[64];
@@ -366,6 +376,12 @@ static void vec_dcmt_send_set_watchdog(uint16_t timeout_ms)
                 dcmt_send_set_watchdog(&g_dev, timeout_ms));
 }
 
+static void vec_dcmt_send_clear_watchdog_trip(void)
+{
+    emit_encode("dcmt_send_clear_watchdog_trip", "", "DCMT_TYPE_ID", "BREAD_OP_CLEAR_WATCHDOG_TRIP",
+                dcmt_send_clear_watchdog_trip(&g_dev));
+}
+
 /* Query helpers carry no arguments: [CRUMBS_TYPE_ID_ANY][CRUMBS_CMD_SET_REPLY][opcode]. */
 static void vec_query(const char *name, int rc)
 {
@@ -405,6 +421,7 @@ static void emit_encode_vectors(void)
     vec_rlht_send_set_watchdog(0);
     vec_rlht_send_set_watchdog(5000);
     vec_rlht_send_set_watchdog(UINT16_MAX);
+    vec_rlht_send_clear_watchdog_trip();
 
     vec_query("rlht_query_state", rlht_query_state(&g_dev));
     vec_query("rlht_query_version", rlht_query_version(&g_dev));
@@ -435,6 +452,7 @@ static void emit_encode_vectors(void)
     vec_dcmt_send_set_watchdog(0);
     vec_dcmt_send_set_watchdog(5000);
     vec_dcmt_send_set_watchdog(UINT16_MAX);
+    vec_dcmt_send_clear_watchdog_trip();
 
     vec_query("dcmt_query_state", dcmt_query_state(&g_dev));
     vec_query("dcmt_query_version", dcmt_query_version(&g_dev));

@@ -33,9 +33,11 @@ CRUMBS' `crumbs_ops.h` (CRUMBS 0.14.0 or newer):
 
 The controller wrappers (`rlht_send_*`, `dcmt_send_*`) pack through these
 structs, and the state parsers unpack through `rlht_state` / `dcmt_state`.
-Slice firmware unpacks each SET payload with the matching `*_unpack()` and
-builds its GET_STATE reply with `rlht_state_pack()` / `dcmt_state_pack()`,
-so both sides read one statement of every layout.
+Slice firmware is meant to unpack each SET payload with the matching
+`*_unpack()` and build its GET_STATE reply with `rlht_state_pack()` /
+`dcmt_state_pack()`, so both sides read one statement of every layout.
+Until the Slice repositories adopt them (feastorg/Slice_RLHT#11,
+feastorg/Slice_DCMT#28), the firmware still reads hand-written offsets.
 
 ## Capability Principle
 

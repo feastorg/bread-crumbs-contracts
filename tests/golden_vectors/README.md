@@ -23,7 +23,8 @@ hand-written append sequences before.
   rejected the payload). Every parser has short, empty and one-byte-over-long
   records, so the file states each parser's length rule as the C applies it
   today: `dcmt_parse_state_payload()` and `bread_watchdog_parse_payload()`
-  reject the trailing byte, the others ignore it (#18 makes this uniform).
+  reject the trailing byte, the others ignore it. Making this uniform would
+  change a vector here, so it is a decision of its own.
 
 ## Regenerating
 

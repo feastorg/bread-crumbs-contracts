@@ -2,6 +2,8 @@
 
 ## [Unreleased]
 
+## [0.6.0] - 2026-10-05
+
 ### Changed
 
 - `rlht_ops.h` and `dcmt_ops.h` declare their type and opcodes once with

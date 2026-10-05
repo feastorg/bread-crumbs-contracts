@@ -53,6 +53,13 @@ Flags:
   command watchdog (`BREAD_OP_SET_WATCHDOG` / `BREAD_OP_GET_WATCHDOG`);
   controllers must not send `BREAD_OP_SET_WATCHDOG` unless this flag is
   advertised
+- bit 6: `DCMT_CAP_CLEAR_WATCHDOG_TRIP` — the watchdog trip latches until
+  `BREAD_OP_CLEAR_WATCHDOG_TRIP`, a deliberate local operator command on the
+  slice (firmware-defined, not any serial input), or a reboot;
+  `BREAD_OP_SET_WATCHDOG` and ordinary frames no longer clear it.
+  Advertised only together with `DCMT_CAP_CMD_WATCHDOG`. Controllers must
+  not send `BREAD_OP_CLEAR_WATCHDOG_TRIP` unless this flag is advertised; on
+  firmware without it, `BREAD_OP_SET_WATCHDOG` clears the trip
 
 Baseline flag set:
 
@@ -78,11 +85,18 @@ Flags:
   command watchdog (`BREAD_OP_SET_WATCHDOG` / `BREAD_OP_GET_WATCHDOG`);
   controllers must not send `BREAD_OP_SET_WATCHDOG` unless this flag is
   advertised
+- bit 7: `RLHT_CAP_CLEAR_WATCHDOG_TRIP` — the watchdog trip latches until
+  `BREAD_OP_CLEAR_WATCHDOG_TRIP`, a deliberate local operator command on the
+  slice (firmware-defined, not any serial input), or a reboot;
+  `BREAD_OP_SET_WATCHDOG` and ordinary frames no longer clear it.
+  Advertised only together with `RLHT_CAP_CMD_WATCHDOG`. Controllers must
+  not send `BREAD_OP_CLEAR_WATCHDOG_TRIP` unless this flag is advertised; on
+  firmware without it, `BREAD_OP_SET_WATCHDOG` clears the trip
 
 Baseline flag set:
 
 - `RLHT_CAP_BASELINE_FLAGS` (all currently supported RLHT control features;
-  does not include `RLHT_CAP_CMD_WATCHDOG`)
+  does not include `RLHT_CAP_CMD_WATCHDOG` or `RLHT_CAP_CLEAR_WATCHDOG_TRIP`)
 
 ## Extension Policy
 
@@ -91,3 +105,10 @@ Capability evolution is additive-only:
 - add new flags for optional new behavior,
 - preserve semantics of existing flags/opcodes,
 - append payload fields only through a new schema version.
+
+One exception: firmware that advertises `DCMT_CAP_CLEAR_WATCHDOG_TRIP` /
+`RLHT_CAP_CLEAR_WATCHDOG_TRIP` changes what `BREAD_OP_SET_WATCHDOG` does,
+because it no longer clears a watchdog trip. A controller that predates the
+flag has no remote way to clear a trip on that firmware, so the controller
+release that understands the flag must ship with or before such firmware
+(see `controller-compatibility.md`).

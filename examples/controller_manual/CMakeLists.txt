@@ -18,7 +18,7 @@ if(CRUMBS_BUILD_IN_TREE)
         ${CMAKE_SOURCE_DIR}/../../include
     )
 else()
-    find_package(crumbs CONFIG REQUIRED)
+    find_package(crumbs 0.14 CONFIG REQUIRED)
     add_executable(controller_manual main.c)
     target_link_libraries(controller_manual PRIVATE crumbs::crumbs)
     target_include_directories(controller_manual PRIVATE

@@ -55,7 +55,7 @@ In your project `platformio.ini`:
 
 ```ini
 lib_deps =
-  cameronbrooks11/CRUMBS @ ^0.12.0
+  cameronbrooks11/CRUMBS @ ^0.14.0
   cameronbrooks11/bread-crumbs-contracts @ ^0.4.0
 ```
 
@@ -97,6 +97,7 @@ Ensure CRUMBS headers are also on include path, since contract headers depend on
 
 - `crumbs.h`
 - `crumbs_message_helpers.h`
+- `crumbs_ops.h` (CRUMBS 0.14.0 or newer; needs C11 or C++11)
 - `crumbs_version.h`
 
 ## Python Codec
@@ -149,8 +150,8 @@ assert (CRUMBS_TYPE_ID_ANY, CRUMBS_CMD_SET_REPLY, request.hex()) == (0x00, 0xFE,
 # The GET_STATE reply payload read back through the transport. Each parser
 # applies the length rule of its C namesake: rlht_parse_state_payload reads
 # the 19-byte prefix and ignores trailing bytes; dcmt_parse_state_payload
-# and bread_watchdog_parse_payload require the exact length (#18 is where
-# the rule becomes uniform).
+# and bread_watchdog_parse_payload require the exact length. Making the
+# rule uniform would change a golden vector, so it is a decision of its own.
 state = rlht_parse_state_payload(bytes.fromhex("0002f401f6fffa002c016400c800e803d00706"))
 assert (state.t1_deci_c, state.t2_deci_c, state.tc1, state.tc2) == (500, -10, 2, 1)
 ```

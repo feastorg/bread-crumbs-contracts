@@ -2,6 +2,58 @@
 
 ## [Unreleased]
 
+### Changed
+
+- `rlht_ops.h` and `dcmt_ops.h` declare their type and opcodes once with
+  CRUMBS' `CRUMBS_DEFINE_FAMILY` and every payload layout once with
+  `CRUMBS_DEFINE_PAYLOAD` (#18). The build now fails on a duplicate
+  opcode or a field list that does not sum to its stated size. The bytes
+  on the wire are unchanged for every opcode: each `*_send_*` and
+  `*_query_*` helper writes the same frame as 0.5.0 and each state parser
+  returns the same result for the same payload, and
+  `tests/golden_vectors/vectors.json` regenerates without a difference.
+- The `*_send_*` wrappers keep their scalar parameters and pack through
+  the generated payload structs; their signatures are unchanged.
+- `RLHT_TYPE_ID`, `DCMT_TYPE_ID` and the `RLHT_OP_*` / `DCMT_OP_*` opcodes
+  are enum constants instead of macros, with the same values. They no
+  longer work in `#if`. In C++ each family's constants have their own
+  unnamed enum type, so mixing two families now warns where the macros
+  did not: `r ? RLHT_TYPE_ID : DCMT_TYPE_ID` and comparing an RLHT
+  opcode with a DCMT one raise `-Wenum-compare` (on by default in g++),
+  and adding them raises `-Wdeprecated-enum-enum-conversion` in C++20.
+- The headers stop with `#error` on CRUMBS older than 0.14.0, whose
+  `crumbs_ops.h` lacks the family and payload macros.
+- `dcmt_state_result_t` is a typedef of the generated `dcmt_state_t`, with
+  the same members in the same order. `DCMT_STATE_OFF_*` and
+  `DCMT_STATE_FIXED_LEN` stay, and a test holds them to the field list.
+- `rlht_parse_state_payload()` leaves `out` untouched when it rejects a
+  payload; it used to fill the fields before the first one that did not
+  fit. Return codes and the length rules are unchanged:
+  `rlht_parse_state_payload()` ignores trailing bytes and
+  `dcmt_parse_state_payload()` requires exactly 19.
+- The Python opcode-coverage test reads the opcode list and type of each
+  `CRUMBS_DEFINE_FAMILY` as well as `#define`s, so an opcode added to a
+  list without a golden vector still fails it.
+- Requires CRUMBS 0.14.0 or newer for `crumbs_ops.h` (`library.json`
+  `^0.14.0`, `find_package(crumbs 0.14)`), and so C11 or C++11.
+
+### Added
+
+- Generated payload structs and codecs for Slice firmware to unpack SETs
+  and pack replies with: `rlht_set_mode`, `rlht_set_setpoints`,
+  `rlht_set_pid`, `rlht_set_periods`, `rlht_set_tc_select`,
+  `rlht_set_open_duty`, `rlht_state`, `dcmt_set_open_loop`,
+  `dcmt_set_brake`, `dcmt_set_mode`, `dcmt_set_setpoint`, `dcmt_set_pid`
+  and `dcmt_state`, each with `_t`, `_wire_size`, `_pack()` and
+  `_unpack()`.
+- `tests/payload_roundtrip/`: one round-trip test per family. Each SET goes
+  through its wrapper onto a fake bus, is checked against the bytes its
+  layout comment states and unpacked with the Slice-side `_unpack()`; each
+  GET_STATE reply is packed with the Slice-side `_pack()` and read back
+  through the getter.
+- The compile smoke test also builds as C++11 with `-Wall -Wextra -Werror`
+  when a C++ compiler is available.
+
 ## [0.5.0] - 2026-10-03
 
 ### Added

@@ -11,9 +11,9 @@ policy: ``dcmt_parse_state_payload()`` and ``bread_watchdog_parse_payload()``
 reject any length other than the fixed one, while
 ``rlht_parse_state_payload()``, ``bread_caps_parse_payload()`` and
 ``bread_parse_version()`` read a fixed prefix and ignore trailing bytes.
-feastorg/bread-crumbs-contracts#18 is where the rule becomes uniform; each
-Python parser follows its C namesake until then, and the golden vectors
-record which lengths the C accepts.
+Making the rule uniform would change a golden vector, so it is a decision
+of its own; until then each Python parser follows its C namesake, and the
+golden vectors record which lengths the C accepts.
 """
 
 U8_MIN, U8_MAX = 0, 0xFF

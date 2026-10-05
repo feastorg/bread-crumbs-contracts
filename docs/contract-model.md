@@ -19,6 +19,26 @@ Canonical includes:
 
 Generation-scoped public headers are intentionally excluded.
 
+## Payload Layouts
+
+Each device header states its type, opcodes and payload layouts once, with
+CRUMBS' `crumbs_ops.h` (CRUMBS 0.14.0 or newer):
+
+- `CRUMBS_DEFINE_FAMILY(RLHT, 0x01, RLHT_OPS)` declares `RLHT_TYPE_ID` and the
+  `RLHT_OP_*` constants; the build fails on a duplicate opcode.
+- `CRUMBS_DEFINE_PAYLOAD(rlht_set_setpoints, 4, RLHT_SET_SETPOINTS_FIELDS)`
+  declares `rlht_set_setpoints_t`, `rlht_set_setpoints_wire_size`,
+  `rlht_set_setpoints_pack()` and `rlht_set_setpoints_unpack()`; the build
+  fails if the field list does not sum to the stated size.
+
+The controller wrappers (`rlht_send_*`, `dcmt_send_*`) pack through these
+structs, and the state parsers unpack through `rlht_state` / `dcmt_state`.
+Slice firmware is meant to unpack each SET payload with the matching
+`*_unpack()` and build its GET_STATE reply with `rlht_state_pack()` /
+`dcmt_state_pack()`, so both sides read one statement of every layout.
+Until the Slice repositories adopt them (feastorg/Slice_RLHT#11,
+feastorg/Slice_DCMT#28), the firmware still reads hand-written offsets.
+
 ## Capability Principle
 
 Behavior differences are represented as additive capabilities, not generation forks.

@@ -40,7 +40,7 @@ def test_every_parser_has_short_and_over_long_vectors() -> None:
     """Each parser's length rule is recorded from C, not assumed.
 
     C rejects every short payload. Whether it rejects one trailing byte
-    differs per parser today (#18 makes it uniform); the vectors say which.
+    differs per parser today; the vectors say which.
     """
     rc_by_len: dict[str, dict[int, int]] = {}
     for vec in PARSE:

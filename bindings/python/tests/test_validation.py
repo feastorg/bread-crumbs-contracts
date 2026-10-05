@@ -82,9 +82,8 @@ def test_every_encoder_field_has_a_range_case() -> None:
     assert expected == {(case[0].__name__, case[2]) for case in RANGE_CASES}
 
 
-# Each parser applies the length rule its C namesake applies today (#18 is
-# where the rule becomes uniform): exact length, or a fixed prefix with
-# trailing bytes ignored.
+# Each parser applies the length rule its C namesake applies today: exact
+# length, or a fixed prefix with trailing bytes ignored.
 PARSER_FIXED_LEN: dict[str, int] = {
     "rlht_parse_state_payload": bcc.RLHT_STATE_FIXED_LEN,
     "dcmt_parse_state_payload": bcc.DCMT_STATE_FIXED_LEN,

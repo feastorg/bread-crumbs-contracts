@@ -2,7 +2,15 @@
 #define RLHT_OPS_H
 
 #include "crumbs.h"
+
+/* CRUMBS_DEFINE_FAMILY / CRUMBS_DEFINE_PAYLOAD arrived in CRUMBS 0.14.0; an
+ * older crumbs_ops.h exists but lacks them, which fails far below here. */
+#if !defined(CRUMBS_VERSION) || CRUMBS_VERSION < 1400
+#error "bread-crumbs-contracts needs CRUMBS 0.14.0 or newer"
+#endif
+
 #include "crumbs_message_helpers.h"
+#include "crumbs_ops.h"
 #include "bread_caps.h"
 #include "bread_watchdog.h"
 
@@ -11,7 +19,22 @@ extern "C"
 {
 #endif
 
-#define RLHT_TYPE_ID 0x01
+/*
+ * Type and opcodes, declared once: the build fails on a duplicate opcode,
+ * an opcode above 0xFF or equal to 0xFE, or a type of 0x00. Each payload
+ * layout is declared once below and packed and unpacked through the
+ * generated codec by the wrappers here; Slice firmware is meant to use the
+ * same pack/unpack (feastorg/Slice_RLHT#11, feastorg/Slice_DCMT#28).
+ */
+#define RLHT_OPS(X)                                                    \
+    X(RLHT_OP_SET_MODE, 0x01)      /* rlht_set_mode, 1 byte */         \
+    X(RLHT_OP_SET_SETPOINTS, 0x02) /* rlht_set_setpoints, 4 bytes */   \
+    X(RLHT_OP_SET_PID, 0x03)       /* rlht_set_pid, 6 bytes */         \
+    X(RLHT_OP_SET_PERIODS, 0x04)   /* rlht_set_periods, 4 bytes */     \
+    X(RLHT_OP_SET_TC_SELECT, 0x05) /* rlht_set_tc_select, 2 bytes */   \
+    X(RLHT_OP_SET_OPEN_DUTY, 0x06) /* rlht_set_open_duty, 2 bytes */   \
+    X(RLHT_OP_GET_STATE, 0x80)     /* reply rlht_state, 19 bytes */
+CRUMBS_DEFINE_FAMILY(RLHT, 0x01, RLHT_OPS)
 
 #define RLHT_MODULE_VER_MAJOR 1
 #define RLHT_MODULE_VER_MINOR 0
@@ -20,14 +43,55 @@ extern "C"
 #define RLHT_MODE_CLOSED_LOOP 0x00
 #define RLHT_MODE_OPEN_LOOP 0x01
 
-#define RLHT_OP_SET_MODE 0x01
-#define RLHT_OP_SET_SETPOINTS 0x02
-#define RLHT_OP_SET_PID 0x03
-#define RLHT_OP_SET_PERIODS 0x04
-#define RLHT_OP_SET_TC_SELECT 0x05
-#define RLHT_OP_SET_OPEN_DUTY 0x06
+/* SET_MODE: [mode:u8] (RLHT_MODE_*) */
+#define RLHT_SET_MODE_FIELDS(X) X(u8, mode)
+CRUMBS_DEFINE_PAYLOAD(rlht_set_mode, 1, RLHT_SET_MODE_FIELDS)
 
-#define RLHT_OP_GET_STATE 0x80
+/* SET_SETPOINTS: [sp1:i16][sp2:i16], deci-degrees C */
+#define RLHT_SET_SETPOINTS_FIELDS(X) X(i16, sp1_deci_c) X(i16, sp2_deci_c)
+CRUMBS_DEFINE_PAYLOAD(rlht_set_setpoints, 4, RLHT_SET_SETPOINTS_FIELDS)
+
+/* SET_PID: [kp1][ki1][kd1][kp2][ki2][kd2], each u8, gain x10 */
+#define RLHT_SET_PID_FIELDS(X) \
+    X(u8, kp1_x10)             \
+    X(u8, ki1_x10)             \
+    X(u8, kd1_x10)             \
+    X(u8, kp2_x10)             \
+    X(u8, ki2_x10)             \
+    X(u8, kd2_x10)
+CRUMBS_DEFINE_PAYLOAD(rlht_set_pid, 6, RLHT_SET_PID_FIELDS)
+
+/* SET_PERIODS: [p1_ms:u16][p2_ms:u16] */
+#define RLHT_SET_PERIODS_FIELDS(X) X(u16, p1_ms) X(u16, p2_ms)
+CRUMBS_DEFINE_PAYLOAD(rlht_set_periods, 4, RLHT_SET_PERIODS_FIELDS)
+
+/* SET_TC_SELECT: [tc1:u8][tc2:u8] */
+#define RLHT_SET_TC_SELECT_FIELDS(X) X(u8, tc1) X(u8, tc2)
+CRUMBS_DEFINE_PAYLOAD(rlht_set_tc_select, 2, RLHT_SET_TC_SELECT_FIELDS)
+
+/* SET_OPEN_DUTY: [duty1_pct:u8][duty2_pct:u8] */
+#define RLHT_SET_OPEN_DUTY_FIELDS(X) X(u8, duty1_pct) X(u8, duty2_pct)
+CRUMBS_DEFINE_PAYLOAD(rlht_set_open_duty, 2, RLHT_SET_OPEN_DUTY_FIELDS)
+
+/*
+ * GET_STATE reply (19 bytes):
+ * [mode:u8][flags:u8][t1:i16][t2:i16][sp1:i16][sp2:i16]
+ * [on1_ms:u16][on2_ms:u16][period1_ms:u16][period2_ms:u16][tc_select:u8]
+ * tc_select packs tc1 in bits 0-1 and tc2 in bits 2-3.
+ */
+#define RLHT_STATE_FIELDS(X) \
+    X(u8, mode)              \
+    X(u8, flags)             \
+    X(i16, t1_deci_c)        \
+    X(i16, t2_deci_c)        \
+    X(i16, sp1_deci_c)       \
+    X(i16, sp2_deci_c)       \
+    X(u16, on1_ms)           \
+    X(u16, on2_ms)           \
+    X(u16, period1_ms)       \
+    X(u16, period2_ms)       \
+    X(u8, tc_select)
+CRUMBS_DEFINE_PAYLOAD(rlht_state, 19, RLHT_STATE_FIELDS)
 
 #define RLHT_FLAG_ESTOP 0x01
 #define RLHT_FLAG_RELAY1_ON 0x02
@@ -97,24 +161,34 @@ static inline int rlht_validate_query_device(const crumbs_device_t *dev)
     return 0;
 }
 
+/*
+ * SET wrappers keep their scalar parameters and pack through the payload
+ * struct, so the bytes come from the same field list the Slice unpacks.
+ */
 static inline int rlht_send_set_mode(const crumbs_device_t *dev, uint8_t mode)
 {
     crumbs_message_t msg;
+    rlht_set_mode_t v;
     if (rlht_validate_write_device(dev) != 0)
         return -1;
+    v.mode = mode;
     crumbs_msg_init(&msg, RLHT_TYPE_ID, RLHT_OP_SET_MODE);
-    crumbs_msg_add_u8(&msg, mode);
+    if (rlht_set_mode_pack(&msg, &v) != 0)
+        return -1;
     return crumbs_controller_send(dev->ctx, dev->addr, &msg, dev->write_fn, dev->io);
 }
 
 static inline int rlht_send_set_setpoints(const crumbs_device_t *dev, int16_t sp1_deci_c, int16_t sp2_deci_c)
 {
     crumbs_message_t msg;
+    rlht_set_setpoints_t v;
     if (rlht_validate_write_device(dev) != 0)
         return -1;
+    v.sp1_deci_c = sp1_deci_c;
+    v.sp2_deci_c = sp2_deci_c;
     crumbs_msg_init(&msg, RLHT_TYPE_ID, RLHT_OP_SET_SETPOINTS);
-    crumbs_msg_add_i16(&msg, sp1_deci_c);
-    crumbs_msg_add_i16(&msg, sp2_deci_c);
+    if (rlht_set_setpoints_pack(&msg, &v) != 0)
+        return -1;
     return crumbs_controller_send(dev->ctx, dev->addr, &msg, dev->write_fn, dev->io);
 }
 
@@ -123,48 +197,60 @@ static inline int rlht_send_set_pid_x10(const crumbs_device_t *dev,
                                         uint8_t kp2_x10, uint8_t ki2_x10, uint8_t kd2_x10)
 {
     crumbs_message_t msg;
+    rlht_set_pid_t v;
     if (rlht_validate_write_device(dev) != 0)
         return -1;
+    v.kp1_x10 = kp1_x10;
+    v.ki1_x10 = ki1_x10;
+    v.kd1_x10 = kd1_x10;
+    v.kp2_x10 = kp2_x10;
+    v.ki2_x10 = ki2_x10;
+    v.kd2_x10 = kd2_x10;
     crumbs_msg_init(&msg, RLHT_TYPE_ID, RLHT_OP_SET_PID);
-    crumbs_msg_add_u8(&msg, kp1_x10);
-    crumbs_msg_add_u8(&msg, ki1_x10);
-    crumbs_msg_add_u8(&msg, kd1_x10);
-    crumbs_msg_add_u8(&msg, kp2_x10);
-    crumbs_msg_add_u8(&msg, ki2_x10);
-    crumbs_msg_add_u8(&msg, kd2_x10);
+    if (rlht_set_pid_pack(&msg, &v) != 0)
+        return -1;
     return crumbs_controller_send(dev->ctx, dev->addr, &msg, dev->write_fn, dev->io);
 }
 
 static inline int rlht_send_set_periods(const crumbs_device_t *dev, uint16_t p1_ms, uint16_t p2_ms)
 {
     crumbs_message_t msg;
+    rlht_set_periods_t v;
     if (rlht_validate_write_device(dev) != 0)
         return -1;
+    v.p1_ms = p1_ms;
+    v.p2_ms = p2_ms;
     crumbs_msg_init(&msg, RLHT_TYPE_ID, RLHT_OP_SET_PERIODS);
-    crumbs_msg_add_u16(&msg, p1_ms);
-    crumbs_msg_add_u16(&msg, p2_ms);
+    if (rlht_set_periods_pack(&msg, &v) != 0)
+        return -1;
     return crumbs_controller_send(dev->ctx, dev->addr, &msg, dev->write_fn, dev->io);
 }
 
 static inline int rlht_send_set_tc_select(const crumbs_device_t *dev, uint8_t tc1, uint8_t tc2)
 {
     crumbs_message_t msg;
+    rlht_set_tc_select_t v;
     if (rlht_validate_write_device(dev) != 0)
         return -1;
+    v.tc1 = tc1;
+    v.tc2 = tc2;
     crumbs_msg_init(&msg, RLHT_TYPE_ID, RLHT_OP_SET_TC_SELECT);
-    crumbs_msg_add_u8(&msg, tc1);
-    crumbs_msg_add_u8(&msg, tc2);
+    if (rlht_set_tc_select_pack(&msg, &v) != 0)
+        return -1;
     return crumbs_controller_send(dev->ctx, dev->addr, &msg, dev->write_fn, dev->io);
 }
 
 static inline int rlht_send_set_open_duty(const crumbs_device_t *dev, uint8_t duty1_pct, uint8_t duty2_pct)
 {
     crumbs_message_t msg;
+    rlht_set_open_duty_t v;
     if (rlht_validate_write_device(dev) != 0)
         return -1;
+    v.duty1_pct = duty1_pct;
+    v.duty2_pct = duty2_pct;
     crumbs_msg_init(&msg, RLHT_TYPE_ID, RLHT_OP_SET_OPEN_DUTY);
-    crumbs_msg_add_u8(&msg, duty1_pct);
-    crumbs_msg_add_u8(&msg, duty2_pct);
+    if (rlht_set_open_duty_pack(&msg, &v) != 0)
+        return -1;
     return crumbs_controller_send(dev->ctx, dev->addr, &msg, dev->write_fn, dev->io);
 }
 
@@ -222,50 +308,31 @@ static inline int rlht_query_watchdog(const crumbs_device_t *dev)
  * Parse an RLHT GET_STATE payload into a state result. Shared by
  * rlht_get_state() and by controllers that run the query round-trip through
  * their own transport (retry/locking/timing) and only need the wire layout.
+ * Reads the rlht_state layout from the front of the payload and ignores
+ * trailing bytes; a shorter payload returns -1 and leaves out untouched.
  */
 static inline int rlht_parse_state_payload(const uint8_t *data, uint8_t data_len, rlht_state_result_t *out)
 {
-    int rc;
+    rlht_state_t s;
 
     if (!data || !out)
         return -1;
+    if (rlht_state_unpack(data, data_len, &s) != 0)
+        return -1;
 
-    rc = crumbs_msg_read_u8(data, data_len, 0, &out->mode);
-    if (rc != 0)
-        return rc;
-    rc = crumbs_msg_read_u8(data, data_len, 1, &out->flags);
-    if (rc != 0)
-        return rc;
-    rc = crumbs_msg_read_i16(data, data_len, 2, &out->t1_deci_c);
-    if (rc != 0)
-        return rc;
-    rc = crumbs_msg_read_i16(data, data_len, 4, &out->t2_deci_c);
-    if (rc != 0)
-        return rc;
-    rc = crumbs_msg_read_i16(data, data_len, 6, &out->sp1_deci_c);
-    if (rc != 0)
-        return rc;
-    rc = crumbs_msg_read_i16(data, data_len, 8, &out->sp2_deci_c);
-    if (rc != 0)
-        return rc;
-    rc = crumbs_msg_read_u16(data, data_len, 10, &out->on1_ms);
-    if (rc != 0)
-        return rc;
-    rc = crumbs_msg_read_u16(data, data_len, 12, &out->on2_ms);
-    if (rc != 0)
-        return rc;
-    rc = crumbs_msg_read_u16(data, data_len, 14, &out->period1_ms);
-    if (rc != 0)
-        return rc;
-    rc = crumbs_msg_read_u16(data, data_len, 16, &out->period2_ms);
-    if (rc != 0)
-        return rc;
-    rc = crumbs_msg_read_u8(data, data_len, 18, &out->tc_select);
-    if (rc != 0)
-        return rc;
-
-    out->tc1 = (uint8_t)(out->tc_select & 0x03);
-    out->tc2 = (uint8_t)((out->tc_select >> 2) & 0x03);
+    out->mode = s.mode;
+    out->flags = s.flags;
+    out->t1_deci_c = s.t1_deci_c;
+    out->t2_deci_c = s.t2_deci_c;
+    out->sp1_deci_c = s.sp1_deci_c;
+    out->sp2_deci_c = s.sp2_deci_c;
+    out->on1_ms = s.on1_ms;
+    out->on2_ms = s.on2_ms;
+    out->period1_ms = s.period1_ms;
+    out->period2_ms = s.period2_ms;
+    out->tc_select = s.tc_select;
+    out->tc1 = (uint8_t)(s.tc_select & 0x03);
+    out->tc2 = (uint8_t)((s.tc_select >> 2) & 0x03);
     return 0;
 }
 

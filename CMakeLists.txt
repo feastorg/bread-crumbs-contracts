@@ -10,7 +10,7 @@ endif()
 option(BREAD_CONTRACTS_BUILD_TESTS "Build bread-crumbs-contracts test targets" ${BREAD_CONTRACTS_TOP_LEVEL})
 
 if(NOT TARGET crumbs AND NOT TARGET crumbs::crumbs)
-    find_package(crumbs CONFIG REQUIRED)
+    find_package(crumbs 0.14 CONFIG REQUIRED)
 endif()
 
 add_library(bread_crumbs_contracts INTERFACE)
@@ -31,6 +31,38 @@ if(BREAD_CONTRACTS_BUILD_TESTS)
 
     if(BUILD_TESTING)
         add_test(NAME bread_contracts_compile_smoke COMMAND bread_contracts_compile_smoke)
+    endif()
+
+    # One round-trip test per family: each SET through its wrapper and the
+    # Slice-side unpack, each GET reply through the Slice-side pack and the
+    # getter, with the bytes on the wire pinned.
+    foreach(family rlht dcmt)
+        add_executable(bread_contracts_${family}_roundtrip tests/payload_roundtrip/${family}_roundtrip.c)
+        target_link_libraries(bread_contracts_${family}_roundtrip PRIVATE bread::contracts)
+        if(CMAKE_C_COMPILER_ID MATCHES "GNU|Clang")
+            target_compile_options(bread_contracts_${family}_roundtrip PRIVATE -Wall -Wextra -Wpedantic -Werror)
+        endif()
+        if(BUILD_TESTING)
+            add_test(NAME bread_contracts_${family}_roundtrip COMMAND bread_contracts_${family}_roundtrip)
+        endif()
+    endforeach()
+
+    # The Slice firmware and the C++ controllers include these headers as
+    # C++11; build the smoke test that way too when a C++ compiler exists.
+    include(CheckLanguage)
+    check_language(CXX)
+    if(CMAKE_CXX_COMPILER)
+        enable_language(CXX)
+        add_executable(bread_contracts_compile_smoke_cxx tests/compile_smoke/smoke_cxx.cpp)
+        target_link_libraries(bread_contracts_compile_smoke_cxx PRIVATE bread::contracts)
+        set_target_properties(bread_contracts_compile_smoke_cxx PROPERTIES
+            CXX_STANDARD 11 CXX_STANDARD_REQUIRED ON CXX_EXTENSIONS OFF)
+        if(CMAKE_CXX_COMPILER_ID MATCHES "GNU|Clang")
+            target_compile_options(bread_contracts_compile_smoke_cxx PRIVATE -Wall -Wextra -Werror)
+        endif()
+        if(BUILD_TESTING)
+            add_test(NAME bread_contracts_compile_smoke_cxx COMMAND bread_contracts_compile_smoke_cxx)
+        endif()
     endif()
 
     # Writes tests/golden_vectors/vectors.json from the real headers; CI

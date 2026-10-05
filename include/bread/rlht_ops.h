@@ -2,6 +2,13 @@
 #define RLHT_OPS_H
 
 #include "crumbs.h"
+
+/* CRUMBS_DEFINE_FAMILY / CRUMBS_DEFINE_PAYLOAD arrived in CRUMBS 0.14.0; an
+ * older crumbs_ops.h exists but lacks them, which fails far below here. */
+#if !defined(CRUMBS_VERSION) || CRUMBS_VERSION < 1400
+#error "bread-crumbs-contracts needs CRUMBS 0.14.0 or newer"
+#endif
+
 #include "crumbs_message_helpers.h"
 #include "crumbs_ops.h"
 #include "bread_caps.h"
@@ -16,7 +23,8 @@ extern "C"
  * Type and opcodes, declared once: the build fails on a duplicate opcode,
  * an opcode above 0xFF or equal to 0xFE, or a type of 0x00. Each payload
  * layout is declared once below and packed and unpacked through the
- * generated codec, by the wrappers here and by the Slice firmware.
+ * generated codec by the wrappers here; Slice firmware is meant to use the
+ * same pack/unpack (feastorg/Slice_RLHT#11, feastorg/Slice_DCMT#28).
  */
 #define RLHT_OPS(X)                                                    \
     X(RLHT_OP_SET_MODE, 0x01)      /* rlht_set_mode, 1 byte */         \

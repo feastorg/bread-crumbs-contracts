@@ -15,8 +15,14 @@
 - The `*_send_*` wrappers keep their scalar parameters and pack through
   the generated payload structs; their signatures are unchanged.
 - `RLHT_TYPE_ID`, `DCMT_TYPE_ID` and the `RLHT_OP_*` / `DCMT_OP_*` opcodes
-  are enum constants instead of macros, with the same values. They work
-  anywhere an integer constant does except in `#if`.
+  are enum constants instead of macros, with the same values. They no
+  longer work in `#if`. In C++ each family's constants have their own
+  unnamed enum type, so mixing two families now warns where the macros
+  did not: `r ? RLHT_TYPE_ID : DCMT_TYPE_ID` and comparing an RLHT
+  opcode with a DCMT one raise `-Wenum-compare` (on by default in g++),
+  and adding them raises `-Wdeprecated-enum-enum-conversion` in C++20.
+- The headers stop with `#error` on CRUMBS older than 0.14.0, whose
+  `crumbs_ops.h` lacks the family and payload macros.
 - `dcmt_state_result_t` is a typedef of the generated `dcmt_state_t`, with
   the same members in the same order. `DCMT_STATE_OFF_*` and
   `DCMT_STATE_FIXED_LEN` stay, and a test holds them to the field list.

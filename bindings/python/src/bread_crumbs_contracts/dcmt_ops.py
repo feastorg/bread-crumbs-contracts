@@ -39,6 +39,9 @@ __all__ = [
     "DCMT_OP_SET_OPEN_LOOP",
     "DCMT_OP_SET_PID",
     "DCMT_OP_SET_SETPOINT",
+    "DCMT_PID_LOOP_POSITION",
+    "DCMT_PID_LOOP_SPEED",
+    "DCMT_SET_PID_PAYLOAD_LEN",
     "DCMT_STATE_FIXED_LEN",
     "DCMT_STATE_OFF_BRAKES",
     "DCMT_STATE_OFF_ESTOP",
@@ -69,7 +72,9 @@ __all__ = [
 
 DCMT_TYPE_ID = 0x02
 
-DCMT_MODULE_VER_MAJOR = 1
+#: Major 2 since contracts 0.7.0: SET_PID changed layout. A controller built
+#: for one major refuses firmware reporting the other.
+DCMT_MODULE_VER_MAJOR = 2
 DCMT_MODULE_VER_MINOR = 0
 DCMT_MODULE_VER_PATCH = 0
 
@@ -80,6 +85,14 @@ DCMT_OP_SET_SETPOINT = 0x04
 DCMT_OP_SET_PID = 0x05
 
 DCMT_OP_GET_STATE = 0x80
+
+#: SET_PID payload (13 bytes):
+#: ``[loop:u8][kp1:u16][ki1:u16][kd1:u16][kp2:u16][ki2:u16][kd2:u16]``, each
+#: gain ``u16`` x1000 (0 to 65.535). ``loop`` is ``DCMT_PID_LOOP_*``. Firmware
+#: rejects any other length and a loop value it does not define.
+DCMT_SET_PID_PAYLOAD_LEN = 13
+DCMT_PID_LOOP_POSITION = 0x01
+DCMT_PID_LOOP_SPEED = 0x02
 
 #: GET_STATE payload (19 bytes):
 #: ``[mode:u8][m1_pwm:i16][m2_pwm:i16][sp1:i16][sp2:i16]``
@@ -127,7 +140,8 @@ _U8 = struct.Struct("<B")
 _U8_U8 = struct.Struct("<BB")
 _U16 = struct.Struct("<H")
 _I16_I16 = struct.Struct("<hh")
-_PID = struct.Struct("<BBBBBB")
+_PID = struct.Struct("<BHHHHHH")
+assert _PID.size == DCMT_SET_PID_PAYLOAD_LEN
 
 
 @dataclass(frozen=True, slots=True)
@@ -172,16 +186,28 @@ def dcmt_send_set_setpoint(target1: int, target2: int) -> bytes:
 
 
 def dcmt_send_set_pid(
-    kp1_x10: int, ki1_x10: int, kd1_x10: int, kp2_x10: int, ki2_x10: int, kd2_x10: int
+    loop: int,
+    kp1_x1000: int,
+    ki1_x1000: int,
+    kd1_x1000: int,
+    kp2_x1000: int,
+    ki2_x1000: int,
+    kd2_x1000: int,
 ) -> bytes:
-    """``DCMT_OP_SET_PID`` payload: six ``u8`` gains, each ten times the gain."""
+    """``DCMT_OP_SET_PID`` payload: ``loop`` (``DCMT_PID_LOOP_*``), then six
+    ``u16`` gains, each a thousand times the gain.
+
+    Send ``DCMT_PID_LOOP_SPEED`` only when ``DCMT_CAP_CLOSED_LOOP_SPEED`` is
+    advertised.
+    """
     return _PID.pack(
-        u8("kp1_x10", kp1_x10),
-        u8("ki1_x10", ki1_x10),
-        u8("kd1_x10", kd1_x10),
-        u8("kp2_x10", kp2_x10),
-        u8("ki2_x10", ki2_x10),
-        u8("kd2_x10", kd2_x10),
+        u8("loop", loop),
+        u16("kp1_x1000", kp1_x1000),
+        u16("ki1_x1000", ki1_x1000),
+        u16("kd1_x1000", kd1_x1000),
+        u16("kp2_x1000", kp2_x1000),
+        u16("ki2_x1000", ki2_x1000),
+        u16("kd2_x1000", kd2_x1000),
     )
 
 

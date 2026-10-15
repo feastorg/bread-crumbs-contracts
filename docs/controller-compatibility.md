@@ -30,6 +30,16 @@ If `GET_CAPS` fails:
 
 Generation mapping is informational only; runtime caps remain authoritative.
 
+## DCMT Module Major 2
+
+Contracts 0.7.0 changed the DCMT `SET_PID` layout and set
+`DCMT_MODULE_VER_MAJOR` to 2. A controller built against 0.7.0 or later
+refuses DCMT firmware that reports major 1, and one built against an
+earlier release refuses firmware that reports major 2
+(`bread_check_module_compat()`), so neither sends a `SET_PID` the other
+reads in the wrong layout. Update the DCMT firmware and the controller in
+the same step.
+
 ## Command Watchdog Trip
 
 What clears a latched watchdog trip (`tripped` in the `BREAD_OP_GET_WATCHDOG`

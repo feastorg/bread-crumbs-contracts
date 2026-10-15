@@ -11,6 +11,8 @@ int bread_contracts_smoke(void)
     ok += (RLHT_CAP_BASELINE_FLAGS != 0u) ? 0 : 1;
 
     ok += (bread_check_crumbs_compat((uint16_t)BREAD_MIN_CRUMBS_VERSION) == 0) ? 0 : 1;
+    /* DCMT major 2: the SET_PID layout changed in 0.7.0. */
+    ok += (DCMT_MODULE_VER_MAJOR == 2 && RLHT_MODULE_VER_MAJOR == 1) ? 0 : 1;
     ok += (bread_check_module_compat(1, 2, 1, 1) == 0) ? 0 : 1;
     ok += (bread_check_module_compat(2, 0, 1, 0) == -1) ? 0 : 1;
     /* The major alone decides: an older or newer minor is compatible. */

@@ -61,6 +61,15 @@ int bread_contracts_smoke(void)
                RLHT_CAP_CLEAR_WATCHDOG_TRIP != 0u)
                   ? 0
                   : 1;
+        /* ESTOP_HOLD: a cap bit that overlaps no other DCMT flag and is
+           outside the baseline set. */
+        ok += ((DCMT_CAP_ESTOP_HOLD &
+                (DCMT_CAP_OPEN_LOOP_CONTROL | DCMT_CAP_BRAKE_CONTROL | DCMT_CAP_CLOSED_LOOP_POSITION |
+                 DCMT_CAP_CLOSED_LOOP_SPEED | DCMT_CAP_PID_TUNING | DCMT_CAP_CMD_WATCHDOG |
+                 DCMT_CAP_CLEAR_WATCHDOG_TRIP | DCMT_CAP_BASELINE_FLAGS)) == 0u &&
+               DCMT_CAP_ESTOP_HOLD != 0u)
+                  ? 0
+                  : 1;
         ok += (bread_watchdog_build_reply(&wd_reply, DCMT_TYPE_ID, 1, 5000, 1, 3) == 0) ? 0 : 1;
         ok += (wd_reply.type_id == DCMT_TYPE_ID && wd_reply.opcode == BREAD_OP_GET_WATCHDOG) ? 0 : 1;
         ok += (wd_reply.data_len == BREAD_WATCHDOG_FIXED_LEN) ? 0 : 1;

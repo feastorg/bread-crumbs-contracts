@@ -149,6 +149,13 @@ CRUMBS_STATIC_ASSERT(DCMT_STATE_FIXED_LEN == dcmt_state_wire_size,
    and CLEAR_WATCHDOG_TRIP is handled. Advertised only together with
    DCMT_CAP_CMD_WATCHDOG. Without it, SET_WATCHDOG clears the trip. */
 #define DCMT_CAP_CLEAR_WATCHDOG_TRIP ((uint32_t)1u << 6)
+/* A hardware e-stop holds like a latched watchdog trip: on a press the
+   firmware sets both brake flags and moves the position setpoints to the
+   encoders, re-syncing them while the e-stop is held, and while e-stopped
+   it refuses SET_OPEN_LOOP, SET_SETPOINT, SET_MODE and any brake release.
+   A release moves nothing; resume with SET_BRAKE(0,0), then setpoints, then
+   the mode. Without it, a release resumes the stored mode and setpoints. */
+#define DCMT_CAP_ESTOP_HOLD ((uint32_t)1u << 7)
 
 #define DCMT_CAP_BASELINE_FLAGS (DCMT_CAP_OPEN_LOOP_CONTROL | DCMT_CAP_BRAKE_CONTROL)
 

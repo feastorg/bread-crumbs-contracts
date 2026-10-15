@@ -60,6 +60,15 @@ Flags:
   Advertised only together with `DCMT_CAP_CMD_WATCHDOG`. Controllers must
   not send `BREAD_OP_CLEAR_WATCHDOG_TRIP` unless this flag is advertised; on
   firmware without it, `BREAD_OP_SET_WATCHDOG` clears the trip
+- bit 7: `DCMT_CAP_ESTOP_HOLD` — a hardware e-stop holds the way a latched
+  watchdog trip does. On a press the firmware sets both brake flags and
+  moves the position setpoints to the encoders, re-syncing them while the
+  e-stop is held. While e-stopped it refuses `SET_OPEN_LOOP`,
+  `SET_SETPOINT`, `SET_MODE` and any brake release. Releasing the e-stop
+  moves nothing; the controller resumes with `SET_BRAKE(0,0)`, then
+  setpoints, then the mode. On firmware without the flag, a release
+  resumes the stored mode and setpoints, including commands sent during
+  the hold
 
 Baseline flag set:
 

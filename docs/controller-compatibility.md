@@ -68,6 +68,21 @@ advertises it.
 Firmware rejects a `BREAD_OP_CLEAR_WATCHDOG_TRIP` frame with a non-empty
 payload and leaves the trip set.
 
+## DCMT E-stop Hold
+
+On DCMT firmware that advertises `DCMT_CAP_ESTOP_HOLD`, a hardware e-stop
+leaves the board as a latched watchdog trip does: both brake flags set
+(visible in `brakes` in GET_STATE) and the position setpoints at the
+encoders. Motion commands and brake releases sent while `estop` is set
+are refused. After the release nothing moves until the controller sends
+`SET_BRAKE(0,0)`, then setpoints, then the mode, the same sequence that
+resumes after a watchdog trip is cleared.
+
+On firmware without the flag, releasing the e-stop resumes the stored
+mode and setpoints, and commands sent during the hold take effect at the
+release. A controller that wants a release to move nothing sends its safe
+state while `estop` is set, and cannot act on a press it never polled.
+
 ## Error Handling Expectations
 
 Controllers should:

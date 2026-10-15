@@ -30,6 +30,14 @@ Payload v1:
 
 Controller flow: version query -> caps query -> command gating.
 
+The module major in the version reply is the wire-compatibility number: a
+controller refuses to actuate a device whose major differs from the one it
+was built against. Optional features are capability flags, each defined so
+that its absence means the behaviour before the flag existed. Controllers
+key on the major and on flags, never on the module minor or patch;
+`bread_check_module_compat()` checks the major only. See
+`docs/protocol-versioning.md`.
+
 ## Command Watchdog
 
 BREAD defines a shared bus-liveness command watchdog, gated per type by a

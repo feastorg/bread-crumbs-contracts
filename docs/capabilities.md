@@ -100,6 +100,12 @@ Baseline flag set:
 
 ## Extension Policy
 
+Optional features are capability flags; the module major is the
+wire-compatibility number (`protocol-versioning.md`). A new flag is
+defined so that its absence means the behaviour before the flag existed,
+because old firmware advertises no new bit. Controllers gate features on
+flags, never on the module minor or patch.
+
 Capability evolution is additive-only:
 
 - add new flags for optional new behavior,

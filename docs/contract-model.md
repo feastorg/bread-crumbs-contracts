@@ -51,7 +51,10 @@ They are not protocol identity and must not drive controller command branching.
 
 ## When to Split a Contract Line
 
-Create a new contract line (new type ID) only for true wire breaks, such as:
+A wire break within a type bumps that type's module major
+(`protocol-versioning.md`), and controllers refuse a device whose major
+differs. A new contract line (new type ID) is the alternative where a
+split is unavoidable, and only for true wire breaks, such as:
 
 - incompatible opcode semantics,
 - reinterpretation of existing payload bytes,

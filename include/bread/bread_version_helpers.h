@@ -37,19 +37,19 @@ static inline int bread_check_crumbs_compat(uint16_t peripheral_ver)
     return (peripheral_ver >= (uint16_t)BREAD_MIN_CRUMBS_VERSION) ? 0 : -1;
 }
 
-/* Module compatibility:
- * - MAJOR must match
- * - peripheral MINOR must be >= expected MINOR
- * - PATCH ignored
+/* Module compatibility: the module MAJOR is the wire-compatibility number.
+ * - MAJOR must match, else -1: a controller does not actuate the device
+ * - MINOR and PATCH are ignored: optional features are gated on caps
+ *   flags, never on the minor (docs/protocol-versioning.md)
+ * The minor parameters are kept so existing callers compile unchanged.
+ * Before 0.7.0 an older peripheral MINOR returned -2; nothing returns -2 now.
  */
 static inline int bread_check_module_compat(uint8_t peri_major, uint8_t peri_minor,
                                             uint8_t expect_major, uint8_t expect_minor)
 {
-    if (peri_major != expect_major)
-        return -1;
-    if (peri_minor < expect_minor)
-        return -2;
-    return 0;
+    (void)peri_minor;
+    (void)expect_minor;
+    return (peri_major == expect_major) ? 0 : -1;
 }
 
 #endif /* BREAD_VERSION_HELPERS_H */

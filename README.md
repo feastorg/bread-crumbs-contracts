@@ -58,6 +58,27 @@ flag, `BREAD_OP_SET_WATCHDOG` and any other valid command frame still clear
 it. A controller that predates the flag cannot clear a trip remotely on
 firmware that advertises it; see `docs/controller-compatibility.md`.
 
+## DCMT SET_PID
+
+DCMT module major 2 (contracts 0.7.0) changed `DCMT_OP_SET_PID`:
+
+- `[loop:u8][kp1:u16][ki1:u16][kd1:u16][kp2:u16][ki2:u16][kd2:u16]`,
+  13 bytes (`DCMT_SET_PID_PAYLOAD_LEN`). Each gain is the gain x1000
+  (0 to 65.535); 1 is motor 1, 2 is motor 2.
+- `loop` is `DCMT_PID_LOOP_POSITION` (0x01) or `DCMT_PID_LOOP_SPEED`
+  (0x02): the gains go to that loop of both motors, and the other loop
+  keeps its gains. Send `DCMT_PID_LOOP_SPEED` only when
+  `DCMT_CAP_CLOSED_LOOP_SPEED` is advertised.
+- Firmware rejects a `SET_PID` payload whose length is not
+  `DCMT_SET_PID_PAYLOAD_LEN`, short or long, and one whose `loop` it does
+  not define, and applies none of it. `dcmt_parse_set_pid_payload()`
+  applies the length rule; `dcmt_set_pid_unpack()` alone accepts trailing
+  bytes.
+
+Major 1 firmware read six u8 gains x10. A controller built against one
+major refuses DCMT firmware reporting the other, so firmware and
+controller move to major 2 together. RLHT's `SET_PID` is unchanged.
+
 ## Current Device Contracts
 
 - RLHT: `include/bread/rlht_ops.h`

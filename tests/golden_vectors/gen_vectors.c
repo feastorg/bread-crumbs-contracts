@@ -192,6 +192,9 @@ static void emit_constants(void)
     CONST(DCMT_OP_SET_SETPOINT);
     CONST(DCMT_OP_SET_PID);
     CONST(DCMT_OP_GET_STATE);
+    CONST(DCMT_SET_PID_PAYLOAD_LEN);
+    CONST(DCMT_PID_LOOP_POSITION);
+    CONST(DCMT_PID_LOOP_SPEED);
     CONST(DCMT_STATE_OFF_MODE);
     CONST(DCMT_STATE_OFF_M1_PWM);
     CONST(DCMT_STATE_OFF_M2_PWM);
@@ -357,15 +360,15 @@ static void vec_dcmt_send_set_setpoint(int16_t t1, int16_t t2)
                 dcmt_send_set_setpoint(&g_dev, t1, t2));
 }
 
-static void vec_dcmt_send_set_pid(uint8_t kp1, uint8_t ki1, uint8_t kd1,
-                                  uint8_t kp2, uint8_t ki2, uint8_t kd2)
+static void vec_dcmt_send_set_pid(uint8_t loop, uint16_t kp1, uint16_t ki1, uint16_t kd1,
+                                  uint16_t kp2, uint16_t ki2, uint16_t kd2)
 {
-    char a[160];
-    ARGS(a, "\"kp1_x10\": %u, \"ki1_x10\": %u, \"kd1_x10\": %u, "
-            "\"kp2_x10\": %u, \"ki2_x10\": %u, \"kd2_x10\": %u",
-         kp1, ki1, kd1, kp2, ki2, kd2);
+    char a[224];
+    ARGS(a, "\"loop\": %u, \"kp1_x1000\": %u, \"ki1_x1000\": %u, \"kd1_x1000\": %u, "
+            "\"kp2_x1000\": %u, \"ki2_x1000\": %u, \"kd2_x1000\": %u",
+         loop, kp1, ki1, kd1, kp2, ki2, kd2);
     emit_encode("dcmt_send_set_pid", a, "DCMT_TYPE_ID", "DCMT_OP_SET_PID",
-                dcmt_send_set_pid(&g_dev, kp1, ki1, kd1, kp2, ki2, kd2));
+                dcmt_send_set_pid(&g_dev, loop, kp1, ki1, kd1, kp2, ki2, kd2));
 }
 
 static void vec_dcmt_send_set_watchdog(uint16_t timeout_ms)
@@ -445,9 +448,13 @@ static void emit_encode_vectors(void)
     vec_dcmt_send_set_setpoint(0, 0);
     vec_dcmt_send_set_setpoint(INT16_MIN, INT16_MAX);
 
-    vec_dcmt_send_set_pid(1, 2, 3, 4, 5, 6);
-    vec_dcmt_send_set_pid(0, 0, 0, 0, 0, 0);
-    vec_dcmt_send_set_pid(255, 255, 255, 255, 255, 255);
+    /* DCMT's default gains 0.15 / 0.01 / 0.01 on both loops, distinct
+       gains with a high and a low byte each, zero, and extremes. */
+    vec_dcmt_send_set_pid(DCMT_PID_LOOP_POSITION, 150, 10, 10, 150, 10, 10);
+    vec_dcmt_send_set_pid(DCMT_PID_LOOP_SPEED, 150, 10, 10, 150, 10, 10);
+    vec_dcmt_send_set_pid(DCMT_PID_LOOP_POSITION, 0x0102, 0x0304, 0x0506, 0x0708, 0x090A, 0x0B0C);
+    vec_dcmt_send_set_pid(0, 0, 0, 0, 0, 0, 0);
+    vec_dcmt_send_set_pid(255, UINT16_MAX, UINT16_MAX, UINT16_MAX, UINT16_MAX, UINT16_MAX, UINT16_MAX);
 
     vec_dcmt_send_set_watchdog(0);
     vec_dcmt_send_set_watchdog(5000);

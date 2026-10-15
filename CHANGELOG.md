@@ -4,6 +4,20 @@
 
 ### Changed
 
+- **Breaking, DCMT:** `DCMT_OP_SET_PID` carries u16 gains x1000 (0 to
+  65.535) and a loop selector, and `DCMT_MODULE_VER_MAJOR` is 2 (#22). The
+  payload is `[loop:u8][kp1][ki1][kd1][kp2][ki2][kd2]`, each gain u16 LE,
+  13 bytes (`DCMT_SET_PID_PAYLOAD_LEN`); it was six u8 gains x10, which
+  could not represent DCMT's default gains of 0.15 / 0.01 / 0.01. `loop`
+  is `DCMT_PID_LOOP_POSITION` or `DCMT_PID_LOOP_SPEED`, and the other loop
+  keeps its gains (feastorg/Slice_DCMT#29). `dcmt_send_set_pid()` takes
+  `loop` and six `uint16_t` gains; `dcmt_set_pid_t` has `loop` and
+  `kp1_x1000` ... `kd2_x1000`. Firmware rejects a payload whose length is
+  not 13 and a `loop` it does not define. A controller built against this
+  release refuses major-1 DCMT firmware and an older controller refuses
+  major-2 firmware, so DCMT firmware and controller update together.
+  RLHT's `SET_PID` and module major are unchanged.
+
 - `bread_check_module_compat()` checks the module major only (#23). It
   returns 0 when the majors match and -1 when they differ; the minors are
   ignored, so a device at 1.0 checked against an expected 1.1 is now
@@ -14,6 +28,19 @@
   number, optional features are caps flags whose absence means the old
   behaviour, and controllers key on the major and the flags, never on the
   minor or patch.
+
+### Added
+
+- `dcmt_parse_set_pid_payload()`: the Slice-side SET_PID parser. It
+  requires exactly `DCMT_SET_PID_PAYLOAD_LEN` bytes, where
+  `dcmt_set_pid_unpack()` accepts trailing bytes.
+- `DCMT_SET_PID_PAYLOAD_LEN`, `DCMT_PID_LOOP_POSITION` (0x01) and
+  `DCMT_PID_LOOP_SPEED` (0x02), with their Python equivalents. The Python
+  `dcmt_send_set_pid()` takes `loop` and six u16 gains.
+- `tests/golden_vectors/vectors.json`: the DCMT `SET_PID` vectors use the
+  new layout, the DCMT module major is 2 in the constants and in the
+  version vectors built from it, and the new constants are added. No other
+  record changes.
 
 ## [0.6.0] - 2026-10-05
 

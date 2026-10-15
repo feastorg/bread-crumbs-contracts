@@ -17,6 +17,17 @@
   release refuses major-1 DCMT firmware and an older controller refuses
   major-2 firmware, so DCMT firmware and controller update together.
   RLHT's `SET_PID` and module major are unchanged.
+- **Breaking, DCMT:** the GET_STATE reply appends `estop_count` (u8,
+  hardware e-stop presses since boot, wrapping at 255) and is 20 bytes
+  (`DCMT_STATE_FIXED_LEN`), within the same module major 2
+  (feastorg/Slice_RLHT#15). `dcmt_parse_state_payload()` still requires
+  the exact length, so it refuses a major-1 19-byte reply.
+  `DCMT_STATE_OFF_ESTOP_COUNT` is 19; `dcmt_state_t` and the Python
+  `DcmtStateResult` gain `estop_count`.
+- `rlht_parse_state_payload()` reads byte 19, when present, as
+  `estop_count` (0 when the reply is 19 bytes) and still ignores any byte
+  after it. `rlht_state_result_t` and the Python `RlhtStateResult` gain
+  `estop_count`.
 
 - `bread_check_module_compat()` checks the module major only (#23). It
   returns 0 when the majors match and -1 when they differ; the minors are
@@ -39,6 +50,16 @@
   a release resumes the stored state, as before. Outside
   `DCMT_CAP_BASELINE_FLAGS`; Python exports it and `vectors.json` gains
   the constant.
+- `RLHT_CAP_ESTOP_COUNT` (bit 8) and `RLHT_STATE_OFF_ESTOP_COUNT` (19):
+  RLHT firmware that advertises the flag appends `estop_count` to its
+  19-byte GET_STATE reply. Additive: the RLHT module major stays 1, and
+  older controllers ignore the trailing byte as before. Outside
+  `RLHT_CAP_BASELINE_FLAGS`.
+- `tests/golden_vectors/vectors.json`: every DCMT state record carries
+  `estop_count` and is 20 bytes; every RLHT state record gains
+  `estop_count` (0, or 170 for the existing one-trailing-byte record);
+  three RLHT records add a count of 0, a count of 7 and a byte after the
+  count. The Python length-rule test reads the RLHT optional byte.
 - `dcmt_parse_set_pid_payload()`: the Slice-side SET_PID parser. It
   requires exactly `DCMT_SET_PID_PAYLOAD_LEN` bytes, where
   `dcmt_set_pid_unpack()` accepts trailing bytes.

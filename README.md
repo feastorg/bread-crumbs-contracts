@@ -79,6 +79,21 @@ Major 1 firmware read six u8 gains x10. A controller built against one
 major refuses DCMT firmware reporting the other, so firmware and
 controller move to major 2 together. RLHT's `SET_PID` is unchanged.
 
+## E-stop Count
+
+Both state replies carry `estop_count`, a u8 count of hardware e-stop
+presses since boot that wraps at 255, like the watchdog's `trip_count`. A
+press and release between two polls leaves `estop` clear but moves the
+count, so a controller sees a press it missed.
+
+- DCMT: the last byte of the 20-byte GET_STATE reply
+  (`DCMT_STATE_OFF_ESTOP_COUNT`), part of the module major 2 layout.
+- RLHT: appended after the 19-byte reply (`RLHT_STATE_OFF_ESTOP_COUNT`) by
+  firmware that advertises `RLHT_CAP_ESTOP_COUNT`. The RLHT major stays 1:
+  `rlht_parse_state_payload()` already ignored trailing bytes, so older
+  controllers read the 20-byte reply as before. Without the flag the reply
+  is 19 bytes and the parsed `estop_count` is 0.
+
 ## Current Device Contracts
 
 - RLHT: `include/bread/rlht_ops.h`
@@ -187,8 +202,9 @@ assert (CRUMBS_TYPE_ID_ANY, CRUMBS_CMD_SET_REPLY, request.hex()) == (0x00, 0xFE,
 
 # The GET_STATE reply payload read back through the transport. Each parser
 # applies the length rule of its C namesake: rlht_parse_state_payload reads
-# the 19-byte prefix and ignores trailing bytes; dcmt_parse_state_payload
-# and bread_watchdog_parse_payload require the exact length. Making the
+# the 19-byte prefix, then the optional estop_count byte, and ignores the
+# rest; dcmt_parse_state_payload and bread_watchdog_parse_payload require
+# the exact length. Making the
 # rule uniform would change a golden vector, so it is a decision of its own.
 state = rlht_parse_state_payload(bytes.fromhex("0002f401f6fffa002c016400c800e803d00706"))
 assert (state.t1_deci_c, state.t2_deci_c, state.tc1, state.tc2) == (500, -10, 2, 1)

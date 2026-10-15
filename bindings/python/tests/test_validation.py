@@ -95,6 +95,8 @@ PARSER_FIXED_LEN: dict[str, int] = {
     "bread_parse_version": bcc.BREAD_VERSION_PAYLOAD_LEN,
 }
 EXACT_LENGTH_PARSERS = {"dcmt_parse_state_payload", "bread_watchdog_parse_payload"}
+# Optional bytes a prefix parser reads after its fixed length, when present.
+OPTIONAL_TAIL_LEN: dict[str, int] = {"rlht_parse_state_payload": 1}
 
 _FIXED_LEN_PARSE: list[dict[str, Any]] = [
     vec
@@ -115,7 +117,17 @@ def test_parser_length_rule_mirrors_c(vec: dict[str, Any]) -> None:
         with pytest.raises(ValueError):
             parser(payload + b"\xff")
     else:
-        assert parser(payload + b"\xff\x00") == parser(payload)
+        with_tail = payload + b"\x07" * OPTIONAL_TAIL_LEN.get(vec["name"], 0)
+        assert parser(with_tail + b"\xff\x00") == parser(with_tail)
+
+
+def test_rlht_estop_count_is_the_optional_byte() -> None:
+    prefix = bytes(range(1, bcc.RLHT_STATE_FIXED_LEN + 1))
+    without = bcc.rlht_parse_state_payload(prefix)
+    with_count = bcc.rlht_parse_state_payload(prefix + b"\x85")
+    assert without.estop_count == 0
+    assert with_count.estop_count == 0x85
+    assert dataclasses.replace(with_count, estop_count=0) == without
 
 
 @pytest.mark.parametrize("vec", _FIXED_LEN_PARSE, ids=lambda v: v["name"])

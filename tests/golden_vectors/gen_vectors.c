@@ -180,6 +180,8 @@ static void emit_constants(void)
     CONST(RLHT_CAP_OPEN_DUTY_CONTROL);
     CONST(RLHT_CAP_CMD_WATCHDOG);
     CONST(RLHT_CAP_CLEAR_WATCHDOG_TRIP);
+    CONST(RLHT_CAP_ESTOP_COUNT);
+    CONST(RLHT_STATE_OFF_ESTOP_COUNT);
     CONST(RLHT_CAP_BASELINE_FLAGS);
 
     CONST(DCMT_TYPE_ID);
@@ -206,6 +208,7 @@ static void emit_constants(void)
     CONST(DCMT_STATE_OFF_SPD2);
     CONST(DCMT_STATE_OFF_BRAKES);
     CONST(DCMT_STATE_OFF_ESTOP);
+    CONST(DCMT_STATE_OFF_ESTOP_COUNT);
     CONST(DCMT_STATE_FIXED_LEN);
     CONST(DCMT_MODE_OPEN_LOOP);
     CONST(DCMT_MODE_CLOSED_POSITION);
@@ -530,7 +533,8 @@ static void vec_rlht_parse_state(const crumbs_message_t *reply, uint8_t len)
     RESULT_FIELD("period2_ms", r.period2_ms, 0);
     RESULT_FIELD("tc_select", r.tc_select, 0);
     RESULT_FIELD("tc1", r.tc1, 0);
-    RESULT_FIELD("tc2", r.tc2, 1);
+    RESULT_FIELD("tc2", r.tc2, 0);
+    RESULT_FIELD("estop_count", r.estop_count, 1);
     result_end();
 }
 
@@ -575,14 +579,15 @@ static void vec_dcmt_parse_state(const crumbs_message_t *reply, uint8_t len)
     RESULT_FIELD("spd1", r.spd1, 0);
     RESULT_FIELD("spd2", r.spd2, 0);
     RESULT_FIELD("brakes", r.brakes, 0);
-    RESULT_FIELD("estop", r.estop, 1);
+    RESULT_FIELD("estop", r.estop, 0);
+    RESULT_FIELD("estop_count", r.estop_count, 1);
     result_end();
 }
 
 static void dcmt_state_reply(crumbs_message_t *m, uint8_t mode,
                              int16_t m1_pwm, int16_t m2_pwm, int16_t sp1, int16_t sp2,
                              int16_t pos1, int16_t pos2, int16_t spd1, int16_t spd2,
-                             uint8_t brakes, uint8_t estop)
+                             uint8_t brakes, uint8_t estop, uint8_t estop_count)
 {
     crumbs_msg_init(m, DCMT_TYPE_ID, DCMT_OP_GET_STATE);
     crumbs_msg_add_u8(m, mode);
@@ -595,7 +600,8 @@ static void dcmt_state_reply(crumbs_message_t *m, uint8_t mode,
     crumbs_msg_add_i16(m, spd1);
     crumbs_msg_add_i16(m, spd2);
     crumbs_msg_add_u8(m, brakes);
-    if (crumbs_msg_add_u8(m, estop) != 0)
+    crumbs_msg_add_u8(m, estop);
+    if (crumbs_msg_add_u8(m, estop_count) != 0)
         die("dcmt state reply overflow");
     if (m->data_len != DCMT_STATE_FIXED_LEN)
         die("dcmt state reply length");
@@ -690,30 +696,41 @@ static void emit_parse_vectors(void)
     vec_rlht_parse_state(&m, m.data_len);
     vec_rlht_parse_state(&m, (uint8_t)(m.data_len - 1));
     vec_rlht_parse_state(&m, 0);
-    /* One trailing byte: rlht_parse_state_payload() reads a fixed prefix and accepts it. */
+    /* One trailing byte: rlht_parse_state_payload() reads a fixed prefix and
+       accepts it, and reads the byte as estop_count (RLHT_CAP_ESTOP_COUNT). */
     rlht_state_reply(&m, RLHT_MODE_CLOSED_LOOP, RLHT_FLAG_RELAY2_ON,
                      215, 220, 250, 300, 100, 200, 1000, 2000, 0x09);
     crumbs_msg_add_u8(&m, 0xAA);
     vec_rlht_parse_state(&m, m.data_len);
+    /* estop_count, as firmware with RLHT_CAP_ESTOP_COUNT appends it: zero, a
+       count, and a count with a further byte, which is ignored. */
+    rlht_state_reply(&m, RLHT_MODE_CLOSED_LOOP, 0, 250, 250, 250, 250, 0, 0, 1000, 1000, 0x05);
+    crumbs_msg_add_u8(&m, 0);
+    vec_rlht_parse_state(&m, m.data_len);
+    rlht_state_reply(&m, RLHT_MODE_OPEN_LOOP, RLHT_FLAG_ESTOP, 300, 301, 0, 0, 0, 0, 1000, 1000, 0x05);
+    crumbs_msg_add_u8(&m, 7);
+    vec_rlht_parse_state(&m, m.data_len);
+    crumbs_msg_add_u8(&m, 0xBB);
+    vec_rlht_parse_state(&m, m.data_len);
 
     /* DCMT GET_STATE: closed-speed, open-loop with sentinels, extremes, zero, short, empty. */
-    dcmt_state_reply(&m, DCMT_MODE_CLOSED_SPEED, 100, -100, 500, -500, 1234, -1234, 60, -60, 0, 0);
+    dcmt_state_reply(&m, DCMT_MODE_CLOSED_SPEED, 100, -100, 500, -500, 1234, -1234, 60, -60, 0, 0, 3);
     vec_dcmt_parse_state(&m, m.data_len);
     dcmt_state_reply(&m, DCMT_MODE_OPEN_LOOP, 255, -255, BREAD_INVALID_I16, BREAD_INVALID_I16,
-                     0, 0, BREAD_INVALID_I16, BREAD_INVALID_I16, 0x03, 1);
+                     0, 0, BREAD_INVALID_I16, BREAD_INVALID_I16, 0x03, 1, 1);
     vec_dcmt_parse_state(&m, m.data_len);
     dcmt_state_reply(&m, DCMT_MODE_CLOSED_POSITION, INT16_MIN, INT16_MAX, INT16_MAX, INT16_MIN,
-                     INT16_MIN, INT16_MAX, -1, 1, 255, 255);
+                     INT16_MIN, INT16_MAX, -1, 1, 255, 255, 255);
     vec_dcmt_parse_state(&m, m.data_len);
-    dcmt_state_reply(&m, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0);
+    dcmt_state_reply(&m, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0);
     vec_dcmt_parse_state(&m, m.data_len);
     /* Every u8 field above 0x7F and distinct: catches i8 reads and swaps. */
-    dcmt_state_reply(&m, 0x80, 1, 2, 3, 4, 5, 6, 7, 8, 0x81, 0x82);
+    dcmt_state_reply(&m, 0x80, 1, 2, 3, 4, 5, 6, 7, 8, 0x81, 0x82, 0x83);
     vec_dcmt_parse_state(&m, m.data_len);
     vec_dcmt_parse_state(&m, (uint8_t)(m.data_len - 1));
     vec_dcmt_parse_state(&m, 0);
     /* One trailing byte: dcmt_parse_state_payload() requires the exact length and rejects it. */
-    dcmt_state_reply(&m, DCMT_MODE_CLOSED_SPEED, 100, -100, 500, -500, 1234, -1234, 60, -60, 0, 0);
+    dcmt_state_reply(&m, DCMT_MODE_CLOSED_SPEED, 100, -100, 500, -500, 1234, -1234, 60, -60, 0, 0, 3);
     crumbs_msg_add_u8(&m, 0xAA);
     vec_dcmt_parse_state(&m, m.data_len);
 

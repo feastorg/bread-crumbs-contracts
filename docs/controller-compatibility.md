@@ -32,7 +32,8 @@ Generation mapping is informational only; runtime caps remain authoritative.
 
 ## DCMT Module Major 2
 
-Contracts 0.7.0 changed the DCMT `SET_PID` layout and set
+Contracts 0.7.0 changed the DCMT `SET_PID` layout, appended `estop_count`
+to the DCMT GET_STATE reply (20 bytes) and set
 `DCMT_MODULE_VER_MAJOR` to 2. A controller built against 0.7.0 or later
 refuses DCMT firmware that reports major 1, and one built against an
 earlier release refuses firmware that reports major 2
@@ -82,6 +83,15 @@ On firmware without the flag, releasing the e-stop resumes the stored
 mode and setpoints, and commands sent during the hold take effect at the
 release. A controller that wants a release to move nothing sends its safe
 state while `estop` is set, and cannot act on a press it never polled.
+
+## E-stop Count
+
+`estop_count` in GET_STATE counts hardware e-stop presses since boot and
+wraps at 255. A controller compares it with the previous poll, modulo 256,
+to see presses that started and ended between polls; a reboot resets it
+to 0. DCMT major 2 always carries it. RLHT carries it when
+`RLHT_CAP_ESTOP_COUNT` is advertised; without the flag, ignore the parsed
+value.
 
 ## Error Handling Expectations
 

@@ -2,6 +2,19 @@
 
 ## [Unreleased]
 
+### Changed
+
+- `bread_check_module_compat()` checks the module major only (#23). It
+  returns 0 when the majors match and -1 when they differ; the minors are
+  ignored, so a device at 1.0 checked against an expected 1.1 is now
+  compatible (it returned -2). Nothing returns -2 any more, and the
+  signature is unchanged. The Python `bread_check_module_compat()` follows.
+- The README, `docs/protocol-versioning.md` and `docs/capabilities.md`
+  state the compatibility rule: the module major is the wire-compatibility
+  number, optional features are caps flags whose absence means the old
+  behaviour, and controllers key on the major and the flags, never on the
+  minor or patch.
+
 ## [0.6.0] - 2026-10-05
 
 ### Changed

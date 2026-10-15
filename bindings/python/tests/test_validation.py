@@ -145,7 +145,10 @@ def test_crumbs_compat() -> None:
 
 
 def test_module_compat() -> None:
+    """The major alone decides; the minor never makes a device incompatible."""
     assert bcc.bread_check_module_compat(1, 2, 1, 1) == 0
     assert bcc.bread_check_module_compat(1, 1, 1, 1) == 0
+    assert bcc.bread_check_module_compat(1, 0, 1, 1) == 0
+    assert bcc.bread_check_module_compat(1, 0, 1, 255) == 0
     assert bcc.bread_check_module_compat(2, 0, 1, 0) == -1
-    assert bcc.bread_check_module_compat(1, 0, 1, 1) == -2
+    assert bcc.bread_check_module_compat(0, 9, 1, 0) == -1

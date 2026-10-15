@@ -2,6 +2,8 @@
 
 ## [Unreleased]
 
+## [0.7.0] - 2026-10-15
+
 ### Changed
 
 - **Breaking, DCMT:** `DCMT_OP_SET_PID` carries u16 gains x1000 (0 to
@@ -28,7 +30,6 @@
   `estop_count` (0 when the reply is 19 bytes) and still ignores any byte
   after it. `rlht_state_result_t` and the Python `RlhtStateResult` gain
   `estop_count`.
-
 - `bread_check_module_compat()` checks the module major only (#23). It
   returns 0 when the majors match and -1 when they differ; the minors are
   ignored, so a device at 1.0 checked against an expected 1.1 is now

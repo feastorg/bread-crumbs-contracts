@@ -39,7 +39,20 @@ refuses DCMT firmware that reports major 1, and one built against an
 earlier release refuses firmware that reports major 2
 (`bread_check_module_compat()`), so neither sends a `SET_PID` the other
 reads in the wrong layout. Update the DCMT firmware and the controller in
-the same step.
+the same step:
+
+- the controller moves its contracts pin to 0.7.0 and sends the new
+  `SET_PID` (for anolis-provider-bread, anolishq/anolis-provider-bread#147);
+- every DCMT board is reflashed with firmware built against `^0.7.0`. A
+  `^0.6.0` pin, which Slice_DCMT's `platformio.ini` carries today, does
+  not resolve 0.7.0 on 0.x, so the pin changes first;
+- until both sides move, the controller refuses the board: a 0.7.0
+  controller refuses a board that was not reflashed (anolis-provider-bread
+  reports `incompatible_module_major`), and an older controller refuses a
+  reflashed one;
+- RLHT boards need no reflash. RLHT stays major 1 and is wire compatible
+  both ways; only `estop_count` needs RLHT firmware that advertises
+  `RLHT_CAP_ESTOP_COUNT`.
 
 ## Command Watchdog Trip
 

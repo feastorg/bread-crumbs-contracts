@@ -77,7 +77,11 @@ DCMT module major 2 (contracts 0.7.0) changed `DCMT_OP_SET_PID`:
 
 Major 1 firmware read six u8 gains x10. A controller built against one
 major refuses DCMT firmware reporting the other, so firmware and
-controller move to major 2 together. RLHT's `SET_PID` is unchanged.
+controller move to major 2 together: the controller moves its contracts
+pin to 0.7.0, and every DCMT board is reflashed with firmware built
+against `^0.7.0` (a `^0.6.0` pin does not resolve 0.7.0). Until both
+sides move, the controller refuses the board. RLHT stays major 1, so
+RLHT boards need no reflash; RLHT's `SET_PID` is unchanged.
 
 ## E-stop Count
 
@@ -109,7 +113,7 @@ In your project `platformio.ini`:
 ```ini
 lib_deps =
   cameronbrooks11/CRUMBS @ ^0.14.0
-  cameronbrooks11/bread-crumbs-contracts @ ^0.6.0
+  cameronbrooks11/bread-crumbs-contracts @ ^0.7.0
 ```
 
 Controller source:

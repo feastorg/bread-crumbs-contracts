@@ -36,8 +36,9 @@ extern "C"
 CRUMBS_DEFINE_FAMILY(DCMT, 0x02, DCMT_OPS)
 
 /* Major 2 since contracts 0.7.0: SET_PID changed layout (u16 gains x1000
-   and a loop selector) and GET_STATE gained estop_count. A controller built for one major refuses firmware
-   reporting the other (docs/protocol-versioning.md). */
+   and a loop selector) and GET_STATE gained estop_count. A controller
+   built for one major refuses firmware reporting the other
+   (docs/protocol-versioning.md). */
 #define DCMT_MODULE_VER_MAJOR 2
 #define DCMT_MODULE_VER_MINOR 0
 #define DCMT_MODULE_VER_PATCH 0
@@ -59,7 +60,8 @@ CRUMBS_DEFINE_PAYLOAD(dcmt_set_mode, 1, DCMT_SET_MODE_FIELDS)
 CRUMBS_DEFINE_PAYLOAD(dcmt_set_setpoint, 4, DCMT_SET_SETPOINT_FIELDS)
 
 /*
- * SET_PID (13 bytes): [loop:u8][kp1:u16][ki1:u16][kd1:u16][kp2:u16][ki2:u16][kd2:u16]
+ * SET_PID (13 bytes):
+ *   [loop:u8][kp1:u16][ki1:u16][kd1:u16][kp2:u16][ki2:u16][kd2:u16]
  * Each gain is u16 x1000 (0 to 65.535); 1 is motor 1, 2 is motor 2. loop
  * (DCMT_PID_LOOP_*) names the control loop of both motors the gains are
  * for; the other loop keeps its gains. Firmware rejects a payload whose

@@ -22,6 +22,7 @@ __all__ = [
     "DCMT_CAP_CLOSED_LOOP_POSITION",
     "DCMT_CAP_CLOSED_LOOP_SPEED",
     "DCMT_CAP_CMD_WATCHDOG",
+    "DCMT_CAP_ESTOP_HOLD",
     "DCMT_CAP_LEVEL_1",
     "DCMT_CAP_LEVEL_2",
     "DCMT_CAP_LEVEL_3",
@@ -130,6 +131,11 @@ DCMT_CAP_CMD_WATCHDOG = 1 << 5
 #: operator command or reboot; SET_WATCHDOG no longer clears it. Without
 #: this flag, SET_WATCHDOG clears the trip.
 DCMT_CAP_CLEAR_WATCHDOG_TRIP = 1 << 6
+#: A hardware e-stop holds like a latched watchdog trip: brakes set,
+#: position setpoints synced to the encoders, motion and brake release
+#: refused while e-stopped; a release moves nothing. Without this flag, a
+#: release resumes the stored mode and setpoints.
+DCMT_CAP_ESTOP_HOLD = 1 << 7
 
 DCMT_CAP_BASELINE_FLAGS = DCMT_CAP_OPEN_LOOP_CONTROL | DCMT_CAP_BRAKE_CONTROL
 

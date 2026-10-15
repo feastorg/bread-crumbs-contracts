@@ -220,6 +220,7 @@ static void emit_constants(void)
     CONST(DCMT_CAP_PID_TUNING);
     CONST(DCMT_CAP_CMD_WATCHDOG);
     CONST(DCMT_CAP_CLEAR_WATCHDOG_TRIP);
+    CONST(DCMT_CAP_ESTOP_HOLD);
     CONST(DCMT_CAP_BASELINE_FLAGS);
 
     fprintf(g_out, "\n  },\n");

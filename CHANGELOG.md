@@ -31,6 +31,14 @@
 
 ### Added
 
+- `DCMT_CAP_ESTOP_HOLD` (bit 7) for DCMT firmware that holds a hardware
+  e-stop the way it holds a latched watchdog trip (feastorg/Slice_DCMT#30):
+  brakes set, position setpoints synced to the encoders, motion commands
+  and brake releases refused while e-stopped, and nothing moves at the
+  release until `SET_BRAKE(0,0)`, setpoints and the mode. Without the bit,
+  a release resumes the stored state, as before. Outside
+  `DCMT_CAP_BASELINE_FLAGS`; Python exports it and `vectors.json` gains
+  the constant.
 - `dcmt_parse_set_pid_payload()`: the Slice-side SET_PID parser. It
   requires exactly `DCMT_SET_PID_PAYLOAD_LEN` bytes, where
   `dcmt_set_pid_unpack()` accepts trailing bytes.

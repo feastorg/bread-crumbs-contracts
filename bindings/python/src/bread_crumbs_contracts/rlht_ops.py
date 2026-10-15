@@ -18,6 +18,7 @@ from .bread_watchdog import BREAD_OP_GET_WATCHDOG
 __all__ = [
     "RLHT_CAP_BASELINE_FLAGS",
     "RLHT_CAP_CLEAR_WATCHDOG_TRIP",
+    "RLHT_CAP_ESTOP_COUNT",
     "RLHT_CAP_CMD_WATCHDOG",
     "RLHT_CAP_LEVEL_1",
     "RLHT_CAP_LEVEL_2",
@@ -44,6 +45,7 @@ __all__ = [
     "RLHT_OP_SET_SETPOINTS",
     "RLHT_OP_SET_TC_SELECT",
     "RLHT_STATE_FIXED_LEN",
+    "RLHT_STATE_OFF_ESTOP_COUNT",
     "RLHT_TYPE_ID",
     "RlhtStateResult",
     "rlht_parse_state_payload",
@@ -98,6 +100,9 @@ RLHT_CAP_CMD_WATCHDOG = 1 << 6
 #: operator command or reboot; SET_WATCHDOG no longer clears it. Without
 #: this flag, SET_WATCHDOG clears the trip.
 RLHT_CAP_CLEAR_WATCHDOG_TRIP = 1 << 7
+#: The GET_STATE reply carries ``estop_count`` after the 19-byte layout.
+#: Without it the reply is 19 bytes and ``estop_count`` parses as 0.
+RLHT_CAP_ESTOP_COUNT = 1 << 8
 
 RLHT_CAP_BASELINE_FLAGS = (
     RLHT_CAP_MODE_CONTROL
@@ -112,8 +117,11 @@ RLHT_CAP_BASELINE_FLAGS = (
 #: ``[mode:u8][flags:u8][t1:i16][t2:i16][sp1:i16][sp2:i16]``
 #: ``[on1:u16][on2:u16][period1:u16][period2:u16][tc_select:u8]``.
 #: ``rlht_ops.h`` has no length macro; ``rlht_parse_state_payload()`` reads
-#: field by field up to offset 18.
+#: field by field up to offset 18. Firmware advertising
+#: ``RLHT_CAP_ESTOP_COUNT`` appends ``[estop_count:u8]`` at offset 19: e-stop
+#: presses since boot, wrapping at 255.
 RLHT_STATE_FIXED_LEN = 19
+RLHT_STATE_OFF_ESTOP_COUNT = 19
 
 _STATE = struct.Struct("<BBhhhhHHHHB")
 assert _STATE.size == RLHT_STATE_FIXED_LEN
@@ -144,6 +152,9 @@ class RlhtStateResult:
     #: Derived from ``tc_select``: bits 0-1 and bits 2-3.
     tc1: int
     tc2: int
+    #: Byte 19 when the reply carries it, else 0; meaningful only when
+    #: ``RLHT_CAP_ESTOP_COUNT`` is advertised.
+    estop_count: int
 
 
 def rlht_send_set_mode(mode: int) -> bytes:
@@ -222,8 +233,9 @@ def rlht_query_watchdog() -> bytes:
 def rlht_parse_state_payload(payload: bytes) -> RlhtStateResult:
     """Parse a GET_STATE reply payload (``rlht_parse_state_payload``).
 
-    Like the C parser, this reads the fixed 19-byte prefix and ignores any
-    trailing bytes; a shorter payload is rejected.
+    Like the C parser, this reads the fixed 19-byte prefix, then
+    ``estop_count`` from byte 19 if present (0 if not), and ignores any
+    further bytes; a payload shorter than 19 bytes is rejected.
     """
     require_min_len("RLHT GET_STATE", payload, RLHT_STATE_FIXED_LEN)
     (mode, flags, t1, t2, sp1, sp2, on1, on2, period1, period2, tc_select) = _STATE.unpack_from(
@@ -243,4 +255,7 @@ def rlht_parse_state_payload(payload: bytes) -> RlhtStateResult:
         tc_select=tc_select,
         tc1=tc_select & 0x03,
         tc2=(tc_select >> 2) & 0x03,
+        estop_count=(
+            payload[RLHT_STATE_OFF_ESTOP_COUNT] if len(payload) > RLHT_STATE_OFF_ESTOP_COUNT else 0
+        ),
     )

@@ -176,6 +176,36 @@ static void test_get_state(void)
     CHECK(rx.period2_ms == 50000, "period2");
     CHECK(rx.tc_select == 0x06, "tc_select");
     CHECK(rx.tc1 == 2 && rx.tc2 == 1, "tc1, tc2 derived from tc_select");
+    CHECK(rx.estop_count == 0, "a 19-byte reply carries no estop_count: 0");
+}
+
+/* Firmware advertising RLHT_CAP_ESTOP_COUNT appends estop_count to the
+   19-byte layout, at RLHT_STATE_OFF_ESTOP_COUNT. */
+static void test_get_state_estop_count(void)
+{
+    rlht_state_t tx;
+    rlht_state_result_t rx;
+    crumbs_message_t reply;
+
+    memset(&tx, 0, sizeof tx);
+    tx.mode = RLHT_MODE_OPEN_LOOP;
+    tx.flags = RLHT_FLAG_ESTOP;
+    tx.t1_deci_c = 215;
+    tx.tc_select = 0x09;
+
+    fake_bus_bind();
+    crumbs_msg_init(&reply, RLHT_TYPE_ID, RLHT_OP_GET_STATE);
+    CHECK(rlht_state_pack(&reply, &tx) == 0, "pack state");
+    CHECK(reply.data_len == RLHT_STATE_OFF_ESTOP_COUNT, "the count follows the 19-byte layout");
+    CHECK(crumbs_msg_add_u8(&reply, 0x85) == 0, "append estop_count");
+    fake_bus_serve(&reply);
+
+    memset(&rx, 0, sizeof rx);
+    CHECK(rlht_get_state(&g_dev, &rx) == 0, "get state with estop_count");
+    CHECK(rx.mode == RLHT_MODE_OPEN_LOOP && rx.flags == RLHT_FLAG_ESTOP && rx.t1_deci_c == 215,
+          "the 19-byte fields are unchanged");
+    CHECK(rx.tc1 == 1 && rx.tc2 == 2, "tc1, tc2");
+    CHECK(rx.estop_count == 0x85, "estop_count read from offset 19, unsigned");
 }
 
 static void test_state_length_rule(void)
@@ -185,9 +215,20 @@ static void test_state_length_rule(void)
 
     memset(buf, 0x11, sizeof buf);
     CHECK(rlht_parse_state_payload(buf, 18, &rx) == -1, "one byte short is refused");
+    memset(&rx, 0x5A, sizeof rx);
     CHECK(rlht_parse_state_payload(buf, 19, &rx) == 0, "exact length is accepted");
-    CHECK(rlht_parse_state_payload(buf, 20, &rx) == 0, "a trailing byte is ignored");
+    CHECK(rx.estop_count == 0, "no estop_count byte: 0, not left as it was");
+    buf[RLHT_STATE_OFF_ESTOP_COUNT] = 0x22;
+    CHECK(rlht_parse_state_payload(buf, 20, &rx) == 0 && rx.estop_count == 0x22, "byte 19 is estop_count");
+    CHECK(rlht_parse_state_payload(buf, 20, &rx) == 0 && rx.t1_deci_c == 0x1111, "the prefix is unchanged");
     CHECK(rlht_parse_state_payload(NULL, 19, &rx) == -1, "NULL payload is refused");
+    {
+        uint8_t big[21];
+        memset(big, 0x33, sizeof big);
+        big[RLHT_STATE_OFF_ESTOP_COUNT] = 0x44;
+        CHECK(rlht_parse_state_payload(big, 21, &rx) == 0 && rx.estop_count == 0x44,
+              "bytes after estop_count are ignored");
+    }
 }
 
 int main(void)
@@ -200,6 +241,7 @@ int main(void)
     test_set_open_duty();
     test_clear_watchdog_trip();
     test_get_state();
+    test_get_state_estop_count();
     test_state_length_rule();
     if (g_failures)
     {

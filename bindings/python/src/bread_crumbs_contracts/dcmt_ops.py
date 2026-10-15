@@ -46,6 +46,7 @@ __all__ = [
     "DCMT_STATE_FIXED_LEN",
     "DCMT_STATE_OFF_BRAKES",
     "DCMT_STATE_OFF_ESTOP",
+    "DCMT_STATE_OFF_ESTOP_COUNT",
     "DCMT_STATE_OFF_M1_PWM",
     "DCMT_STATE_OFF_M2_PWM",
     "DCMT_STATE_OFF_MODE",
@@ -95,9 +96,11 @@ DCMT_SET_PID_PAYLOAD_LEN = 13
 DCMT_PID_LOOP_POSITION = 0x01
 DCMT_PID_LOOP_SPEED = 0x02
 
-#: GET_STATE payload (19 bytes):
+#: GET_STATE payload (20 bytes):
 #: ``[mode:u8][m1_pwm:i16][m2_pwm:i16][sp1:i16][sp2:i16]``
-#: ``[pos1:i16][pos2:i16][spd1:i16][spd2:i16][brakes:u8][estop:u8]``.
+#: ``[pos1:i16][pos2:i16][spd1:i16][spd2:i16][brakes:u8][estop:u8][estop_count:u8]``.
+#: ``estop_count`` counts e-stop presses since boot and wraps at 255; module
+#: major 1 firmware sent the first 19 bytes only.
 #: ``sp1``/``sp2`` are ``BREAD_INVALID_I16`` in ``DCMT_MODE_OPEN_LOOP``;
 #: ``spd1``/``spd2`` are ``BREAD_INVALID_I16`` unless ``DCMT_MODE_CLOSED_SPEED``.
 DCMT_STATE_OFF_MODE = 0
@@ -111,7 +114,8 @@ DCMT_STATE_OFF_SPD1 = 13
 DCMT_STATE_OFF_SPD2 = 15
 DCMT_STATE_OFF_BRAKES = 17
 DCMT_STATE_OFF_ESTOP = 18
-DCMT_STATE_FIXED_LEN = 19
+DCMT_STATE_OFF_ESTOP_COUNT = 19
+DCMT_STATE_FIXED_LEN = 20
 
 DCMT_MODE_OPEN_LOOP = 0x00
 DCMT_MODE_CLOSED_POSITION = 0x01
@@ -139,7 +143,7 @@ DCMT_CAP_ESTOP_HOLD = 1 << 7
 
 DCMT_CAP_BASELINE_FLAGS = DCMT_CAP_OPEN_LOOP_CONTROL | DCMT_CAP_BRAKE_CONTROL
 
-_STATE = struct.Struct("<BhhhhhhhhBB")
+_STATE = struct.Struct("<BhhhhhhhhBBB")
 assert _STATE.size == DCMT_STATE_FIXED_LEN
 
 _U8 = struct.Struct("<B")
@@ -169,6 +173,8 @@ class DcmtStateResult:
     spd2: int
     brakes: int
     estop: int
+    #: E-stop presses since boot, wrapping at 255.
+    estop_count: int
 
 
 def dcmt_send_set_open_loop(m1_pwm: int, m2_pwm: int) -> bytes:

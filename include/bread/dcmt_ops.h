@@ -32,11 +32,11 @@ extern "C"
     X(DCMT_OP_SET_MODE, 0x03)      /* dcmt_set_mode, 1 byte */           \
     X(DCMT_OP_SET_SETPOINT, 0x04)  /* dcmt_set_setpoint, 4 bytes */      \
     X(DCMT_OP_SET_PID, 0x05)       /* dcmt_set_pid, 13 bytes */          \
-    X(DCMT_OP_GET_STATE, 0x80)     /* reply dcmt_state, 19 bytes */
+    X(DCMT_OP_GET_STATE, 0x80)     /* reply dcmt_state, 20 bytes */
 CRUMBS_DEFINE_FAMILY(DCMT, 0x02, DCMT_OPS)
 
 /* Major 2 since contracts 0.7.0: SET_PID changed layout (u16 gains x1000
-   and a loop selector). A controller built for one major refuses firmware
+   and a loop selector) and GET_STATE gained estop_count. A controller built for one major refuses firmware
    reporting the other (docs/protocol-versioning.md). */
 #define DCMT_MODULE_VER_MAJOR 2
 #define DCMT_MODULE_VER_MINOR 0
@@ -85,12 +85,17 @@ CRUMBS_STATIC_ASSERT(DCMT_SET_PID_PAYLOAD_LEN == dcmt_set_pid_wire_size,
 #define DCMT_PID_LOOP_POSITION 0x01
 #define DCMT_PID_LOOP_SPEED 0x02
 
-// Fixed GET_STATE payload layout (19 bytes):
+// Fixed GET_STATE payload layout (20 bytes):
 // [mode:u8][m1_pwm:i16][m2_pwm:i16][sp1:i16][sp2:i16]
-// [pos1:i16][pos2:i16][spd1:i16][spd2:i16][brakes:u8][estop:u8]
+// [pos1:i16][pos2:i16][spd1:i16][spd2:i16][brakes:u8][estop:u8][estop_count:u8]
+//
+// estop_count counts hardware e-stop presses since boot and wraps at 255
+// (like the watchdog's trip_count), so a controller sees a press it did not
+// poll during. Module major 1 firmware sent the first 19 bytes only.
 //
 // Field validity:
-//   Always valid (never sentinel): m1_pwm, m2_pwm, pos1, pos2, mode, brakes, estop
+//   Always valid (never sentinel): m1_pwm, m2_pwm, pos1, pos2, mode, brakes, estop,
+//   estop_count
 //   Sentinel-eligible (may be BREAD_INVALID_I16):
 //     sp1/sp2  -> BREAD_INVALID_I16 when mode == DCMT_MODE_OPEN_LOOP
 //     spd1/spd2 -> BREAD_INVALID_I16 unless mode == DCMT_MODE_CLOSED_SPEED
@@ -106,8 +111,9 @@ CRUMBS_STATIC_ASSERT(DCMT_SET_PID_PAYLOAD_LEN == dcmt_set_pid_wire_size,
     X(i16, spd1)   /* tachometer speed; BREAD_INVALID_I16 unless CLOSED_SPEED */ \
     X(i16, spd2)                                                                 \
     X(u8, brakes)                                                                \
-    X(u8, estop)
-CRUMBS_DEFINE_PAYLOAD(dcmt_state, 19, DCMT_STATE_FIELDS)
+    X(u8, estop)                                                                 \
+    X(u8, estop_count) /* e-stop presses since boot, wraps at 255 */
+CRUMBS_DEFINE_PAYLOAD(dcmt_state, 20, DCMT_STATE_FIELDS)
 
 /* The parser's result is the payload struct itself. */
 typedef dcmt_state_t dcmt_state_result_t;
@@ -125,7 +131,8 @@ typedef dcmt_state_t dcmt_state_result_t;
 #define DCMT_STATE_OFF_SPD2 15
 #define DCMT_STATE_OFF_BRAKES 17
 #define DCMT_STATE_OFF_ESTOP 18
-#define DCMT_STATE_FIXED_LEN 19
+#define DCMT_STATE_OFF_ESTOP_COUNT 19
+#define DCMT_STATE_FIXED_LEN 20
 CRUMBS_STATIC_ASSERT(DCMT_STATE_FIXED_LEN == dcmt_state_wire_size,
                      "DCMT_STATE_FIXED_LEN must equal the dcmt_state field list");
 

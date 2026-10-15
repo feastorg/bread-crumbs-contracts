@@ -133,6 +133,7 @@ static dcmt_state_t distinct_state(void)
     s.spd2 = -301;
     s.brakes = 0x02;
     s.estop = 0x01;
+    s.estop_count = 0x83;
     return s;
 }
 
@@ -153,7 +154,7 @@ static void test_clear_watchdog_trip(void)
 
 static void test_get_state(void)
 {
-    static const uint8_t wire[19] = {
+    static const uint8_t wire[20] = {
         0x02,       /* mode */
         0x38, 0xFF, /* m1_pwm = -200 */
         0x37, 0xFF, /* m2_pwm = -201 */
@@ -165,6 +166,7 @@ static void test_get_state(void)
         0xD3, 0xFE, /* spd2 = -301 */
         0x02,       /* brakes */
         0x01,       /* estop */
+        0x83,       /* estop_count = 131 */
     };
     dcmt_state_t tx = distinct_state();
     dcmt_state_result_t rx;
@@ -194,6 +196,7 @@ static void test_get_state(void)
     CHECK(rx.spd2 == -301, "spd2");
     CHECK(rx.brakes == 0x02, "brakes");
     CHECK(rx.estop == 0x01, "estop");
+    CHECK(rx.estop_count == 0x83, "estop_count");
 }
 
 /* DCMT_STATE_OFF_* name the same bytes the field list packs. */
@@ -220,19 +223,22 @@ static void test_state_offsets(void)
     CHECK(crumbs_msg_read_u8(m.data, m.data_len, DCMT_STATE_OFF_BRAKES, &u8v) == 0 && u8v == tx.brakes,
           "OFF_BRAKES");
     CHECK(crumbs_msg_read_u8(m.data, m.data_len, DCMT_STATE_OFF_ESTOP, &u8v) == 0 && u8v == tx.estop, "OFF_ESTOP");
+    CHECK(crumbs_msg_read_u8(m.data, m.data_len, DCMT_STATE_OFF_ESTOP_COUNT, &u8v) == 0 && u8v == tx.estop_count,
+          "OFF_ESTOP_COUNT");
     CHECK(m.data_len == DCMT_STATE_FIXED_LEN, "FIXED_LEN");
 }
 
 static void test_state_length_rule(void)
 {
-    uint8_t buf[20];
+    uint8_t buf[21];
     dcmt_state_result_t rx;
 
     memset(buf, 0x11, sizeof buf);
-    CHECK(dcmt_parse_state_payload(buf, 18, &rx) == -1, "one byte short is refused");
-    CHECK(dcmt_parse_state_payload(buf, 19, &rx) == 0, "exact length is accepted");
-    CHECK(dcmt_parse_state_payload(buf, 20, &rx) == -1, "a trailing byte is refused (exact-length rule)");
-    CHECK(dcmt_parse_state_payload(NULL, 19, &rx) == -1, "NULL payload is refused");
+    CHECK(dcmt_parse_state_payload(buf, 19, &rx) == -1, "the major-1 19-byte reply is refused");
+    CHECK(dcmt_parse_state_payload(buf, 20, &rx) == 0, "exact length is accepted");
+    CHECK(rx.estop_count == 0x11, "estop_count is the last byte");
+    CHECK(dcmt_parse_state_payload(buf, 21, &rx) == -1, "a trailing byte is refused (exact-length rule)");
+    CHECK(dcmt_parse_state_payload(NULL, 20, &rx) == -1, "NULL payload is refused");
 }
 
 int main(void)

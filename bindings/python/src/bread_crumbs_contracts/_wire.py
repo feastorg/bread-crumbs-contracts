@@ -10,7 +10,9 @@ The two length rules mirror the C parsers as they are today, not a single
 policy: ``dcmt_parse_state_payload()`` and ``bread_watchdog_parse_payload()``
 reject any length other than the fixed one, while
 ``rlht_parse_state_payload()``, ``bread_caps_parse_payload()`` and
-``bread_parse_version()`` read a fixed prefix and ignore trailing bytes.
+``bread_parse_version()`` read a fixed prefix and ignore trailing bytes
+(``rlht_parse_state_payload()`` reads one optional byte after its prefix,
+``estop_count``, before it ignores the rest).
 Making the rule uniform would change a golden vector, so it is a decision
 of its own; until then each Python parser follows its C namesake, and the
 golden vectors record which lengths the C accepts.

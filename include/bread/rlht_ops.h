@@ -33,7 +33,7 @@ extern "C"
     X(RLHT_OP_SET_PERIODS, 0x04)   /* rlht_set_periods, 4 bytes */     \
     X(RLHT_OP_SET_TC_SELECT, 0x05) /* rlht_set_tc_select, 2 bytes */   \
     X(RLHT_OP_SET_OPEN_DUTY, 0x06) /* rlht_set_open_duty, 2 bytes */   \
-    X(RLHT_OP_GET_STATE, 0x80)     /* reply rlht_state, 19 bytes */
+    X(RLHT_OP_GET_STATE, 0x80)     /* reply rlht_state, 19 or 20 bytes */
 CRUMBS_DEFINE_FAMILY(RLHT, 0x01, RLHT_OPS)
 
 #define RLHT_MODULE_VER_MAJOR 1
@@ -78,6 +78,12 @@ CRUMBS_DEFINE_PAYLOAD(rlht_set_open_duty, 2, RLHT_SET_OPEN_DUTY_FIELDS)
  * [mode:u8][flags:u8][t1:i16][t2:i16][sp1:i16][sp2:i16]
  * [on1_ms:u16][on2_ms:u16][period1_ms:u16][period2_ms:u16][tc_select:u8]
  * tc_select packs tc1 in bits 0-1 and tc2 in bits 2-3.
+ *
+ * Firmware that advertises RLHT_CAP_ESTOP_COUNT appends
+ * [estop_count:u8] at RLHT_STATE_OFF_ESTOP_COUNT (20 bytes): hardware
+ * e-stop presses since boot, wrapping at 255, so a controller sees a press
+ * it did not poll during. Build it with rlht_state_pack() followed by
+ * crumbs_msg_add_u8(). Firmware without the flag sends the 19 bytes.
  */
 #define RLHT_STATE_FIELDS(X) \
     X(u8, mode)              \
@@ -92,6 +98,8 @@ CRUMBS_DEFINE_PAYLOAD(rlht_set_open_duty, 2, RLHT_SET_OPEN_DUTY_FIELDS)
     X(u16, period2_ms)       \
     X(u8, tc_select)
 CRUMBS_DEFINE_PAYLOAD(rlht_state, 19, RLHT_STATE_FIELDS)
+
+#define RLHT_STATE_OFF_ESTOP_COUNT 19
 
 #define RLHT_FLAG_ESTOP 0x01
 #define RLHT_FLAG_RELAY1_ON 0x02
@@ -114,6 +122,9 @@ CRUMBS_DEFINE_PAYLOAD(rlht_state, 19, RLHT_STATE_FIELDS)
    and CLEAR_WATCHDOG_TRIP is handled. Advertised only together with
    RLHT_CAP_CMD_WATCHDOG. Without it, SET_WATCHDOG clears the trip. */
 #define RLHT_CAP_CLEAR_WATCHDOG_TRIP ((uint32_t)1u << 7)
+/* The GET_STATE reply carries estop_count after the 19-byte layout. Without
+   it the reply is 19 bytes and rlht_state_result_t.estop_count reads 0. */
+#define RLHT_CAP_ESTOP_COUNT ((uint32_t)1u << 8)
 
 #define RLHT_CAP_BASELINE_FLAGS (RLHT_CAP_MODE_CONTROL | RLHT_CAP_SETPOINT_CONTROL | \
                                  RLHT_CAP_PID_TUNING | RLHT_CAP_PERIOD_CONTROL | \
@@ -134,6 +145,9 @@ typedef struct
     uint8_t tc_select;
     uint8_t tc1;
     uint8_t tc2;
+    /* Byte RLHT_STATE_OFF_ESTOP_COUNT when the reply carries it, else 0;
+       meaningful only when RLHT_CAP_ESTOP_COUNT is advertised. */
+    uint8_t estop_count;
 } rlht_state_result_t;
 
 typedef struct
@@ -325,8 +339,10 @@ static inline int rlht_query_watchdog(const crumbs_device_t *dev)
  * Parse an RLHT GET_STATE payload into a state result. Shared by
  * rlht_get_state() and by controllers that run the query round-trip through
  * their own transport (retry/locking/timing) and only need the wire layout.
- * Reads the rlht_state layout from the front of the payload and ignores
- * trailing bytes; a shorter payload returns -1 and leaves out untouched.
+ * Reads the rlht_state layout from the front of the payload, then
+ * estop_count from byte RLHT_STATE_OFF_ESTOP_COUNT if the payload has it
+ * (0 if not), and ignores any further bytes; a payload shorter than 19
+ * bytes returns -1 and leaves out untouched.
  */
 static inline int rlht_parse_state_payload(const uint8_t *data, uint8_t data_len, rlht_state_result_t *out)
 {
@@ -350,6 +366,7 @@ static inline int rlht_parse_state_payload(const uint8_t *data, uint8_t data_len
     out->tc_select = s.tc_select;
     out->tc1 = (uint8_t)(s.tc_select & 0x03);
     out->tc2 = (uint8_t)((s.tc_select >> 2) & 0x03);
+    out->estop_count = (data_len > RLHT_STATE_OFF_ESTOP_COUNT) ? data[RLHT_STATE_OFF_ESTOP_COUNT] : 0;
     return 0;
 }
 

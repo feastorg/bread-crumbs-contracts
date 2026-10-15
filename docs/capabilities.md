@@ -101,11 +101,17 @@ Flags:
   Advertised only together with `RLHT_CAP_CMD_WATCHDOG`. Controllers must
   not send `BREAD_OP_CLEAR_WATCHDOG_TRIP` unless this flag is advertised; on
   firmware without it, `BREAD_OP_SET_WATCHDOG` clears the trip
+- bit 8: `RLHT_CAP_ESTOP_COUNT` — the GET_STATE reply appends
+  `[estop_count:u8]` after its 19 bytes (`RLHT_STATE_OFF_ESTOP_COUNT`):
+  hardware e-stop presses since boot, wrapping at 255. On firmware without
+  the flag the reply is 19 bytes and `rlht_parse_state_payload()` reports
+  `estop_count` 0, which a controller must not read as a count
 
 Baseline flag set:
 
 - `RLHT_CAP_BASELINE_FLAGS` (all currently supported RLHT control features;
-  does not include `RLHT_CAP_CMD_WATCHDOG` or `RLHT_CAP_CLEAR_WATCHDOG_TRIP`)
+  does not include `RLHT_CAP_CMD_WATCHDOG`, `RLHT_CAP_CLEAR_WATCHDOG_TRIP` or
+  `RLHT_CAP_ESTOP_COUNT`)
 
 ## Extension Policy
 

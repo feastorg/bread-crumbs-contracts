@@ -789,6 +789,12 @@ static int cmd_dcmt(const device_info_t *info, const char *rest)
         }
         if (sscanf(rest, "%15s %u %u %u %u %u %u", loop_s, &kp1, &ki1, &kd1, &kp2, &ki2, &kd2) != 7)
             return -1;
+        if (kp1 > UINT16_MAX || ki1 > UINT16_MAX || kd1 > UINT16_MAX ||
+            kp2 > UINT16_MAX || ki2 > UINT16_MAX || kd2 > UINT16_MAX)
+        {
+            printf("DCMT pid gains are 0..65535 (x1000 units).\n");
+            return -1;
+        }
         if (strcmp(loop_s, "pos") == 0)
             loop = DCMT_PID_LOOP_POSITION;
         else if (strcmp(loop_s, "speed") == 0)

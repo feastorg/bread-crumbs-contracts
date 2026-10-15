@@ -17,7 +17,18 @@
   `kp1_x1000` ... `kd2_x1000`. Firmware rejects a payload whose length is
   not 13 and a `loop` it does not define. A controller built against this
   release refuses major-1 DCMT firmware and an older controller refuses
-  major-2 firmware, so DCMT firmware and controller update together.
+  major-2 firmware, so DCMT firmware and controller update together:
+  - anolis-provider-bread bumps its contracts pin to 0.7.0 and takes the
+    new `set_pid` (anolishq/anolis-provider-bread#147);
+  - every DCMT board is reflashed with Slice_DCMT built against
+    `^0.7.0`. Its `platformio.ini` pins `^0.6.0`, which on 0.x does not
+    resolve 0.7.0, so the pin has to change first;
+  - a 0.7.0 provider refuses a board that was not reflashed
+    (`incompatible_module_major`), and an older provider refuses a
+    reflashed one;
+  - RLHT boards need no reflash: RLHT stays major 1 and is wire
+    compatible both ways. Only `estop_count` needs RLHT firmware that
+    advertises `RLHT_CAP_ESTOP_COUNT`.
   RLHT's `SET_PID` and module major are unchanged.
 - **Breaking, DCMT:** the GET_STATE reply appends `estop_count` (u8,
   hardware e-stop presses since boot, wrapping at 255) and is 20 bytes

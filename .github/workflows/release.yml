@@ -92,7 +92,7 @@ jobs:
             -DCMAKE_PREFIX_PATH="${{ github.workspace }}/_deps/linux-wire-install;${{ github.workspace }}/_deps/crumbs-install;${{ github.workspace }}/staging"
           cmake --build build/smoke/out --parallel
 
-      - uses: astral-sh/setup-uv@v10.2.0
+      - uses: astral-sh/setup-uv@v10.3.0
         with:
           python-version: "3.11"
 
@@ -189,7 +189,7 @@ jobs:
       VERSION: ${{ needs.release.outputs.version }}
 
     steps:
-      - uses: astral-sh/setup-uv@v10.2.0
+      - uses: astral-sh/setup-uv@v10.3.0
         with:
           python-version: "3.11"
 

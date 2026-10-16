@@ -103,6 +103,7 @@ count, so a controller sees a press it missed.
 - RLHT: `include/bread/rlht_ops.h`
 - DCMT: `include/bread/dcmt_ops.h`
 - Shared caps helpers: `include/bread/bread_caps.h`
+- Shared opcode list and family check: `include/bread/bread_common_ops.h`
 - Shared watchdog helpers: `include/bread/bread_watchdog.h`
 - Shared version helpers: `include/bread/bread_version_helpers.h`
 

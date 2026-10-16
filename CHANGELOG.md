@@ -2,6 +2,19 @@
 
 ## [Unreleased]
 
+### Fixed
+
+- A family opcode equal to a bread-common opcode (0x7C-0x7F: the three
+  watchdog ops and `BREAD_OP_GET_CAPS`) now fails the build (#32).
+  `CRUMBS_DEFINE_FAMILY` checks a family's opcodes against each other
+  only, so such an opcode built and collided with an operation every
+  Slice implements. The new `bread_common_ops.h` lists the common
+  opcodes in `BREAD_COMMON_OPS(X)`, and `BREAD_CHECK_FAMILY_OPS(PREFIX,
+  OPS)`, called after the family declaration in `dcmt_ops.h` and
+  `rlht_ops.h`, fails with a duplicate case value on a clash. No opcode,
+  payload or wire byte changes, and `vectors.json` is unchanged. A
+  compile-fail ctest declares a family with each common opcode in turn.
+
 ## [0.7.0] - 2026-10-15
 
 ### Changed

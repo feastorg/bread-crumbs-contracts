@@ -22,6 +22,7 @@ __all__ = [
     "DCMT_CAP_CLOSED_LOOP_POSITION",
     "DCMT_CAP_CLOSED_LOOP_SPEED",
     "DCMT_CAP_CMD_WATCHDOG",
+    "DCMT_CAP_ESTOP_HOLD",
     "DCMT_CAP_LEVEL_1",
     "DCMT_CAP_LEVEL_2",
     "DCMT_CAP_LEVEL_3",
@@ -39,9 +40,13 @@ __all__ = [
     "DCMT_OP_SET_OPEN_LOOP",
     "DCMT_OP_SET_PID",
     "DCMT_OP_SET_SETPOINT",
+    "DCMT_PID_LOOP_POSITION",
+    "DCMT_PID_LOOP_SPEED",
+    "DCMT_SET_PID_PAYLOAD_LEN",
     "DCMT_STATE_FIXED_LEN",
     "DCMT_STATE_OFF_BRAKES",
     "DCMT_STATE_OFF_ESTOP",
+    "DCMT_STATE_OFF_ESTOP_COUNT",
     "DCMT_STATE_OFF_M1_PWM",
     "DCMT_STATE_OFF_M2_PWM",
     "DCMT_STATE_OFF_MODE",
@@ -69,7 +74,9 @@ __all__ = [
 
 DCMT_TYPE_ID = 0x02
 
-DCMT_MODULE_VER_MAJOR = 1
+#: Major 2 since contracts 0.7.0: SET_PID changed layout. A controller built
+#: for one major refuses firmware reporting the other.
+DCMT_MODULE_VER_MAJOR = 2
 DCMT_MODULE_VER_MINOR = 0
 DCMT_MODULE_VER_PATCH = 0
 
@@ -81,9 +88,19 @@ DCMT_OP_SET_PID = 0x05
 
 DCMT_OP_GET_STATE = 0x80
 
-#: GET_STATE payload (19 bytes):
+#: SET_PID payload (13 bytes):
+#: ``[loop:u8][kp1:u16][ki1:u16][kd1:u16][kp2:u16][ki2:u16][kd2:u16]``, each
+#: gain ``u16`` x1000 (0 to 65.535). ``loop`` is ``DCMT_PID_LOOP_*``. Firmware
+#: rejects any other length and a loop value it does not define.
+DCMT_SET_PID_PAYLOAD_LEN = 13
+DCMT_PID_LOOP_POSITION = 0x01
+DCMT_PID_LOOP_SPEED = 0x02
+
+#: GET_STATE payload (20 bytes):
 #: ``[mode:u8][m1_pwm:i16][m2_pwm:i16][sp1:i16][sp2:i16]``
-#: ``[pos1:i16][pos2:i16][spd1:i16][spd2:i16][brakes:u8][estop:u8]``.
+#: ``[pos1:i16][pos2:i16][spd1:i16][spd2:i16][brakes:u8][estop:u8][estop_count:u8]``.
+#: ``estop_count`` counts e-stop presses since boot and wraps at 255; module
+#: major 1 firmware sent the first 19 bytes only.
 #: ``sp1``/``sp2`` are ``BREAD_INVALID_I16`` in ``DCMT_MODE_OPEN_LOOP``;
 #: ``spd1``/``spd2`` are ``BREAD_INVALID_I16`` unless ``DCMT_MODE_CLOSED_SPEED``.
 DCMT_STATE_OFF_MODE = 0
@@ -97,7 +114,8 @@ DCMT_STATE_OFF_SPD1 = 13
 DCMT_STATE_OFF_SPD2 = 15
 DCMT_STATE_OFF_BRAKES = 17
 DCMT_STATE_OFF_ESTOP = 18
-DCMT_STATE_FIXED_LEN = 19
+DCMT_STATE_OFF_ESTOP_COUNT = 19
+DCMT_STATE_FIXED_LEN = 20
 
 DCMT_MODE_OPEN_LOOP = 0x00
 DCMT_MODE_CLOSED_POSITION = 0x01
@@ -117,17 +135,23 @@ DCMT_CAP_CMD_WATCHDOG = 1 << 5
 #: operator command or reboot; SET_WATCHDOG no longer clears it. Without
 #: this flag, SET_WATCHDOG clears the trip.
 DCMT_CAP_CLEAR_WATCHDOG_TRIP = 1 << 6
+#: A hardware e-stop holds like a latched watchdog trip: brakes set,
+#: position setpoints synced to the encoders, motion and brake release
+#: refused while e-stopped; a release moves nothing. Without this flag, a
+#: release resumes the stored mode and setpoints.
+DCMT_CAP_ESTOP_HOLD = 1 << 7
 
 DCMT_CAP_BASELINE_FLAGS = DCMT_CAP_OPEN_LOOP_CONTROL | DCMT_CAP_BRAKE_CONTROL
 
-_STATE = struct.Struct("<BhhhhhhhhBB")
+_STATE = struct.Struct("<BhhhhhhhhBBB")
 assert _STATE.size == DCMT_STATE_FIXED_LEN
 
 _U8 = struct.Struct("<B")
 _U8_U8 = struct.Struct("<BB")
 _U16 = struct.Struct("<H")
 _I16_I16 = struct.Struct("<hh")
-_PID = struct.Struct("<BBBBBB")
+_PID = struct.Struct("<BHHHHHH")
+assert _PID.size == DCMT_SET_PID_PAYLOAD_LEN
 
 
 @dataclass(frozen=True, slots=True)
@@ -149,6 +173,8 @@ class DcmtStateResult:
     spd2: int
     brakes: int
     estop: int
+    #: E-stop presses since boot, wrapping at 255.
+    estop_count: int
 
 
 def dcmt_send_set_open_loop(m1_pwm: int, m2_pwm: int) -> bytes:
@@ -172,16 +198,28 @@ def dcmt_send_set_setpoint(target1: int, target2: int) -> bytes:
 
 
 def dcmt_send_set_pid(
-    kp1_x10: int, ki1_x10: int, kd1_x10: int, kp2_x10: int, ki2_x10: int, kd2_x10: int
+    loop: int,
+    kp1_x1000: int,
+    ki1_x1000: int,
+    kd1_x1000: int,
+    kp2_x1000: int,
+    ki2_x1000: int,
+    kd2_x1000: int,
 ) -> bytes:
-    """``DCMT_OP_SET_PID`` payload: six ``u8`` gains, each ten times the gain."""
+    """``DCMT_OP_SET_PID`` payload: ``loop`` (``DCMT_PID_LOOP_*``), then six
+    ``u16`` gains, each a thousand times the gain.
+
+    Send ``DCMT_PID_LOOP_SPEED`` only when ``DCMT_CAP_CLOSED_LOOP_SPEED`` is
+    advertised.
+    """
     return _PID.pack(
-        u8("kp1_x10", kp1_x10),
-        u8("ki1_x10", ki1_x10),
-        u8("kd1_x10", kd1_x10),
-        u8("kp2_x10", kp2_x10),
-        u8("ki2_x10", ki2_x10),
-        u8("kd2_x10", kd2_x10),
+        u8("loop", loop),
+        u16("kp1_x1000", kp1_x1000),
+        u16("ki1_x1000", ki1_x1000),
+        u16("kd1_x1000", kd1_x1000),
+        u16("kp2_x1000", kp2_x1000),
+        u16("ki2_x1000", ki2_x1000),
+        u16("kd2_x1000", kd2_x1000),
     )
 
 

@@ -11,8 +11,14 @@ int bread_contracts_smoke(void)
     ok += (RLHT_CAP_BASELINE_FLAGS != 0u) ? 0 : 1;
 
     ok += (bread_check_crumbs_compat((uint16_t)BREAD_MIN_CRUMBS_VERSION) == 0) ? 0 : 1;
+    /* DCMT major 2: the SET_PID layout changed in 0.7.0. */
+    ok += (DCMT_MODULE_VER_MAJOR == 2 && RLHT_MODULE_VER_MAJOR == 1) ? 0 : 1;
     ok += (bread_check_module_compat(1, 2, 1, 1) == 0) ? 0 : 1;
     ok += (bread_check_module_compat(2, 0, 1, 0) == -1) ? 0 : 1;
+    /* The major alone decides: an older or newer minor is compatible. */
+    ok += (bread_check_module_compat(1, 0, 1, 1) == 0) ? 0 : 1;
+    ok += (bread_check_module_compat(1, 0, 1, 255) == 0) ? 0 : 1;
+    ok += (bread_check_module_compat(0, 9, 1, 0) == -1) ? 0 : 1;
 
     /* State payload parsers: valid fixed-layout payloads round-trip; short
        or NULL payloads are rejected. */
@@ -53,6 +59,24 @@ int bread_contracts_smoke(void)
                  RLHT_CAP_PERIOD_CONTROL | RLHT_CAP_TC_SELECT | RLHT_CAP_OPEN_DUTY_CONTROL |
                  RLHT_CAP_CMD_WATCHDOG)) == 0u &&
                RLHT_CAP_CLEAR_WATCHDOG_TRIP != 0u)
+                  ? 0
+                  : 1;
+        /* ESTOP_HOLD: a cap bit that overlaps no other DCMT flag and is
+           outside the baseline set. */
+        ok += ((DCMT_CAP_ESTOP_HOLD &
+                (DCMT_CAP_OPEN_LOOP_CONTROL | DCMT_CAP_BRAKE_CONTROL | DCMT_CAP_CLOSED_LOOP_POSITION |
+                 DCMT_CAP_CLOSED_LOOP_SPEED | DCMT_CAP_PID_TUNING | DCMT_CAP_CMD_WATCHDOG |
+                 DCMT_CAP_CLEAR_WATCHDOG_TRIP | DCMT_CAP_BASELINE_FLAGS)) == 0u &&
+               DCMT_CAP_ESTOP_HOLD != 0u)
+                  ? 0
+                  : 1;
+        /* RLHT ESTOP_COUNT: a cap bit that overlaps no other RLHT flag and
+           is outside the baseline set. */
+        ok += ((RLHT_CAP_ESTOP_COUNT &
+                (RLHT_CAP_MODE_CONTROL | RLHT_CAP_SETPOINT_CONTROL | RLHT_CAP_PID_TUNING |
+                 RLHT_CAP_PERIOD_CONTROL | RLHT_CAP_TC_SELECT | RLHT_CAP_OPEN_DUTY_CONTROL |
+                 RLHT_CAP_CMD_WATCHDOG | RLHT_CAP_CLEAR_WATCHDOG_TRIP | RLHT_CAP_BASELINE_FLAGS)) == 0u &&
+               RLHT_CAP_ESTOP_COUNT != 0u)
                   ? 0
                   : 1;
         ok += (bread_watchdog_build_reply(&wd_reply, DCMT_TYPE_ID, 1, 5000, 1, 3) == 0) ? 0 : 1;

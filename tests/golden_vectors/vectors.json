@@ -48,9 +48,11 @@
     "RLHT_CAP_OPEN_DUTY_CONTROL": 32,
     "RLHT_CAP_CMD_WATCHDOG": 64,
     "RLHT_CAP_CLEAR_WATCHDOG_TRIP": 128,
+    "RLHT_CAP_ESTOP_COUNT": 256,
+    "RLHT_STATE_OFF_ESTOP_COUNT": 19,
     "RLHT_CAP_BASELINE_FLAGS": 63,
     "DCMT_TYPE_ID": 2,
-    "DCMT_MODULE_VER_MAJOR": 1,
+    "DCMT_MODULE_VER_MAJOR": 2,
     "DCMT_MODULE_VER_MINOR": 0,
     "DCMT_MODULE_VER_PATCH": 0,
     "DCMT_OP_SET_OPEN_LOOP": 1,
@@ -59,6 +61,9 @@
     "DCMT_OP_SET_SETPOINT": 4,
     "DCMT_OP_SET_PID": 5,
     "DCMT_OP_GET_STATE": 128,
+    "DCMT_SET_PID_PAYLOAD_LEN": 13,
+    "DCMT_PID_LOOP_POSITION": 1,
+    "DCMT_PID_LOOP_SPEED": 2,
     "DCMT_STATE_OFF_MODE": 0,
     "DCMT_STATE_OFF_M1_PWM": 1,
     "DCMT_STATE_OFF_M2_PWM": 3,
@@ -70,7 +75,8 @@
     "DCMT_STATE_OFF_SPD2": 15,
     "DCMT_STATE_OFF_BRAKES": 17,
     "DCMT_STATE_OFF_ESTOP": 18,
-    "DCMT_STATE_FIXED_LEN": 19,
+    "DCMT_STATE_OFF_ESTOP_COUNT": 19,
+    "DCMT_STATE_FIXED_LEN": 20,
     "DCMT_MODE_OPEN_LOOP": 0,
     "DCMT_MODE_CLOSED_POSITION": 1,
     "DCMT_MODE_CLOSED_SPEED": 2,
@@ -84,6 +90,7 @@
     "DCMT_CAP_PID_TUNING": 16,
     "DCMT_CAP_CMD_WATCHDOG": 32,
     "DCMT_CAP_CLEAR_WATCHDOG_TRIP": 64,
+    "DCMT_CAP_ESTOP_HOLD": 128,
     "DCMT_CAP_BASELINE_FLAGS": 3
   },
   "encode": [
@@ -458,30 +465,48 @@
     },
     {
       "name": "dcmt_send_set_pid",
-      "args": {"kp1_x10": 1, "ki1_x10": 2, "kd1_x10": 3, "kp2_x10": 4, "ki2_x10": 5, "kd2_x10": 6},
+      "args": {"loop": 1, "kp1_x1000": 150, "ki1_x1000": 10, "kd1_x1000": 10, "kp2_x1000": 150, "ki2_x1000": 10, "kd2_x1000": 10},
       "type_id_name": "DCMT_TYPE_ID",
       "type_id": 2,
       "opcode_name": "DCMT_OP_SET_PID",
       "opcode": 5,
-      "payload": "010203040506"
+      "payload": "0196000a000a0096000a000a00"
     },
     {
       "name": "dcmt_send_set_pid",
-      "args": {"kp1_x10": 0, "ki1_x10": 0, "kd1_x10": 0, "kp2_x10": 0, "ki2_x10": 0, "kd2_x10": 0},
+      "args": {"loop": 2, "kp1_x1000": 150, "ki1_x1000": 10, "kd1_x1000": 10, "kp2_x1000": 150, "ki2_x1000": 10, "kd2_x1000": 10},
       "type_id_name": "DCMT_TYPE_ID",
       "type_id": 2,
       "opcode_name": "DCMT_OP_SET_PID",
       "opcode": 5,
-      "payload": "000000000000"
+      "payload": "0296000a000a0096000a000a00"
     },
     {
       "name": "dcmt_send_set_pid",
-      "args": {"kp1_x10": 255, "ki1_x10": 255, "kd1_x10": 255, "kp2_x10": 255, "ki2_x10": 255, "kd2_x10": 255},
+      "args": {"loop": 1, "kp1_x1000": 258, "ki1_x1000": 772, "kd1_x1000": 1286, "kp2_x1000": 1800, "ki2_x1000": 2314, "kd2_x1000": 2828},
       "type_id_name": "DCMT_TYPE_ID",
       "type_id": 2,
       "opcode_name": "DCMT_OP_SET_PID",
       "opcode": 5,
-      "payload": "ffffffffffff"
+      "payload": "0102010403060508070a090c0b"
+    },
+    {
+      "name": "dcmt_send_set_pid",
+      "args": {"loop": 0, "kp1_x1000": 0, "ki1_x1000": 0, "kd1_x1000": 0, "kp2_x1000": 0, "ki2_x1000": 0, "kd2_x1000": 0},
+      "type_id_name": "DCMT_TYPE_ID",
+      "type_id": 2,
+      "opcode_name": "DCMT_OP_SET_PID",
+      "opcode": 5,
+      "payload": "00000000000000000000000000"
+    },
+    {
+      "name": "dcmt_send_set_pid",
+      "args": {"loop": 255, "kp1_x1000": 65535, "ki1_x1000": 65535, "kd1_x1000": 65535, "kp2_x1000": 65535, "ki2_x1000": 65535, "kd2_x1000": 65535},
+      "type_id_name": "DCMT_TYPE_ID",
+      "type_id": 2,
+      "opcode_name": "DCMT_OP_SET_PID",
+      "opcode": 5,
+      "payload": "ffffffffffffffffffffffffff"
     },
     {
       "name": "dcmt_send_set_watchdog",
@@ -578,7 +603,8 @@
         "period2_ms": 2000,
         "tc_select": 6,
         "tc1": 2,
-        "tc2": 1
+        "tc2": 1,
+        "estop_count": 0
       }
     },
     {
@@ -602,7 +628,8 @@
         "period2_ms": 1,
         "tc_select": 255,
         "tc1": 3,
-        "tc2": 3
+        "tc2": 3,
+        "estop_count": 0
       }
     },
     {
@@ -626,7 +653,8 @@
         "period2_ms": 0,
         "tc_select": 0,
         "tc1": 0,
-        "tc2": 0
+        "tc2": 0,
+        "estop_count": 0
       }
     },
     {
@@ -650,7 +678,8 @@
         "period2_ms": 8,
         "tc_select": 130,
         "tc1": 2,
-        "tc2": 0
+        "tc2": 0,
+        "estop_count": 0
       }
     },
     {
@@ -694,7 +723,83 @@
         "period2_ms": 2000,
         "tc_select": 9,
         "tc1": 1,
-        "tc2": 2
+        "tc2": 2,
+        "estop_count": 170
+      }
+    },
+    {
+      "name": "rlht_parse_state_payload",
+      "type_id_name": "RLHT_TYPE_ID",
+      "type_id": 1,
+      "opcode_name": "RLHT_OP_GET_STATE",
+      "opcode": 128,
+      "payload": "0000fa00fa00fa00fa0000000000e803e8030500",
+      "rc": 0,
+      "result": {
+        "mode": 0,
+        "flags": 0,
+        "t1_deci_c": 250,
+        "t2_deci_c": 250,
+        "sp1_deci_c": 250,
+        "sp2_deci_c": 250,
+        "on1_ms": 0,
+        "on2_ms": 0,
+        "period1_ms": 1000,
+        "period2_ms": 1000,
+        "tc_select": 5,
+        "tc1": 1,
+        "tc2": 1,
+        "estop_count": 0
+      }
+    },
+    {
+      "name": "rlht_parse_state_payload",
+      "type_id_name": "RLHT_TYPE_ID",
+      "type_id": 1,
+      "opcode_name": "RLHT_OP_GET_STATE",
+      "opcode": 128,
+      "payload": "01012c012d010000000000000000e803e8030507",
+      "rc": 0,
+      "result": {
+        "mode": 1,
+        "flags": 1,
+        "t1_deci_c": 300,
+        "t2_deci_c": 301,
+        "sp1_deci_c": 0,
+        "sp2_deci_c": 0,
+        "on1_ms": 0,
+        "on2_ms": 0,
+        "period1_ms": 1000,
+        "period2_ms": 1000,
+        "tc_select": 5,
+        "tc1": 1,
+        "tc2": 1,
+        "estop_count": 7
+      }
+    },
+    {
+      "name": "rlht_parse_state_payload",
+      "type_id_name": "RLHT_TYPE_ID",
+      "type_id": 1,
+      "opcode_name": "RLHT_OP_GET_STATE",
+      "opcode": 128,
+      "payload": "01012c012d010000000000000000e803e8030507bb",
+      "rc": 0,
+      "result": {
+        "mode": 1,
+        "flags": 1,
+        "t1_deci_c": 300,
+        "t2_deci_c": 301,
+        "sp1_deci_c": 0,
+        "sp2_deci_c": 0,
+        "on1_ms": 0,
+        "on2_ms": 0,
+        "period1_ms": 1000,
+        "period2_ms": 1000,
+        "tc_select": 5,
+        "tc1": 1,
+        "tc2": 1,
+        "estop_count": 7
       }
     },
     {
@@ -703,7 +808,7 @@
       "type_id": 2,
       "opcode_name": "DCMT_OP_GET_STATE",
       "opcode": 128,
-      "payload": "0264009cfff4010cfed2042efb3c00c4ff0000",
+      "payload": "0264009cfff4010cfed2042efb3c00c4ff000003",
       "rc": 0,
       "result": {
         "mode": 2,
@@ -716,7 +821,8 @@
         "spd1": 60,
         "spd2": -60,
         "brakes": 0,
-        "estop": 0
+        "estop": 0,
+        "estop_count": 3
       }
     },
     {
@@ -725,7 +831,7 @@
       "type_id": 2,
       "opcode_name": "DCMT_OP_GET_STATE",
       "opcode": 128,
-      "payload": "00ff0001ff0080008000000000008000800301",
+      "payload": "00ff0001ff008000800000000000800080030101",
       "rc": 0,
       "result": {
         "mode": 0,
@@ -738,7 +844,8 @@
         "spd1": -32768,
         "spd2": -32768,
         "brakes": 3,
-        "estop": 1
+        "estop": 1,
+        "estop_count": 1
       }
     },
     {
@@ -747,7 +854,7 @@
       "type_id": 2,
       "opcode_name": "DCMT_OP_GET_STATE",
       "opcode": 128,
-      "payload": "010080ff7fff7f00800080ff7fffff0100ffff",
+      "payload": "010080ff7fff7f00800080ff7fffff0100ffffff",
       "rc": 0,
       "result": {
         "mode": 1,
@@ -760,7 +867,8 @@
         "spd1": -1,
         "spd2": 1,
         "brakes": 255,
-        "estop": 255
+        "estop": 255,
+        "estop_count": 255
       }
     },
     {
@@ -769,7 +877,7 @@
       "type_id": 2,
       "opcode_name": "DCMT_OP_GET_STATE",
       "opcode": 128,
-      "payload": "00000000000000000000000000000000000000",
+      "payload": "0000000000000000000000000000000000000000",
       "rc": 0,
       "result": {
         "mode": 0,
@@ -782,7 +890,8 @@
         "spd1": 0,
         "spd2": 0,
         "brakes": 0,
-        "estop": 0
+        "estop": 0,
+        "estop_count": 0
       }
     },
     {
@@ -791,7 +900,7 @@
       "type_id": 2,
       "opcode_name": "DCMT_OP_GET_STATE",
       "opcode": 128,
-      "payload": "80010002000300040005000600070008008182",
+      "payload": "8001000200030004000500060007000800818283",
       "rc": 0,
       "result": {
         "mode": 128,
@@ -804,7 +913,8 @@
         "spd1": 7,
         "spd2": 8,
         "brakes": 129,
-        "estop": 130
+        "estop": 130,
+        "estop_count": 131
       }
     },
     {
@@ -813,7 +923,7 @@
       "type_id": 2,
       "opcode_name": "DCMT_OP_GET_STATE",
       "opcode": 128,
-      "payload": "800100020003000400050006000700080081",
+      "payload": "80010002000300040005000600070008008182",
       "rc": -1,
       "result": null
     },
@@ -833,7 +943,7 @@
       "type_id": 2,
       "opcode_name": "DCMT_OP_GET_STATE",
       "opcode": 128,
-      "payload": "0264009cfff4010cfed2042efb3c00c4ff0000aa",
+      "payload": "0264009cfff4010cfed2042efb3c00c4ff000003aa",
       "rc": -1,
       "result": null
     },
@@ -1112,11 +1222,11 @@
       "type_id": 2,
       "opcode_name": "BREAD_OP_GET_VERSION",
       "opcode": 0,
-      "payload": "b004010000",
+      "payload": "b004020000",
       "rc": 0,
       "result": {
         "crumbs_ver": 1200,
-        "mod_major": 1,
+        "mod_major": 2,
         "mod_minor": 0,
         "mod_patch": 0
       }
@@ -1177,11 +1287,11 @@
       "type_id": 2,
       "opcode_name": "BREAD_OP_GET_VERSION",
       "opcode": 0,
-      "payload": "7805010000aa",
+      "payload": "7805020000aa",
       "rc": 0,
       "result": {
         "crumbs_ver": 1400,
-        "mod_major": 1,
+        "mod_major": 2,
         "mod_minor": 0,
         "mod_patch": 0
       }

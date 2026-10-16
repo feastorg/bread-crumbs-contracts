@@ -2,6 +2,87 @@
 
 ## [Unreleased]
 
+## [0.7.0] - 2026-10-15
+
+### Changed
+
+- **Breaking, DCMT:** `DCMT_OP_SET_PID` carries u16 gains x1000 (0 to
+  65.535) and a loop selector, and `DCMT_MODULE_VER_MAJOR` is 2 (#22). The
+  payload is `[loop:u8][kp1][ki1][kd1][kp2][ki2][kd2]`, each gain u16 LE,
+  13 bytes (`DCMT_SET_PID_PAYLOAD_LEN`); it was six u8 gains x10, which
+  could not represent DCMT's default gains of 0.15 / 0.01 / 0.01. `loop`
+  is `DCMT_PID_LOOP_POSITION` or `DCMT_PID_LOOP_SPEED`, and the other loop
+  keeps its gains (feastorg/Slice_DCMT#29). `dcmt_send_set_pid()` takes
+  `loop` and six `uint16_t` gains; `dcmt_set_pid_t` has `loop` and
+  `kp1_x1000` ... `kd2_x1000`. Firmware rejects a payload whose length is
+  not 13 and a `loop` it does not define. A controller built against this
+  release refuses major-1 DCMT firmware and an older controller refuses
+  major-2 firmware, so DCMT firmware and controller update together:
+  - anolis-provider-bread bumps its contracts pin to 0.7.0 and takes the
+    new `set_pid` (anolishq/anolis-provider-bread#147);
+  - every DCMT board is reflashed with Slice_DCMT built against
+    `^0.7.0`. Its `platformio.ini` pins `^0.6.0`, which on 0.x does not
+    resolve 0.7.0, so the pin has to change first;
+  - a 0.7.0 provider refuses a board that was not reflashed
+    (`incompatible_module_major`), and an older provider refuses a
+    reflashed one;
+  - RLHT boards need no reflash: RLHT stays major 1 and is wire
+    compatible both ways. Only `estop_count` needs RLHT firmware that
+    advertises `RLHT_CAP_ESTOP_COUNT`.
+  RLHT's `SET_PID` and module major are unchanged.
+- **Breaking, DCMT:** the GET_STATE reply appends `estop_count` (u8,
+  hardware e-stop presses since boot, wrapping at 255) and is 20 bytes
+  (`DCMT_STATE_FIXED_LEN`), within the same module major 2
+  (feastorg/Slice_RLHT#15). `dcmt_parse_state_payload()` still requires
+  the exact length, so it refuses a major-1 19-byte reply.
+  `DCMT_STATE_OFF_ESTOP_COUNT` is 19; `dcmt_state_t` and the Python
+  `DcmtStateResult` gain `estop_count`.
+- `rlht_parse_state_payload()` reads byte 19, when present, as
+  `estop_count` (0 when the reply is 19 bytes) and still ignores any byte
+  after it. `rlht_state_result_t` and the Python `RlhtStateResult` gain
+  `estop_count`.
+- `bread_check_module_compat()` checks the module major only (#23). It
+  returns 0 when the majors match and -1 when they differ; the minors are
+  ignored, so a device at 1.0 checked against an expected 1.1 is now
+  compatible (it returned -2). Nothing returns -2 any more, and the
+  signature is unchanged. The Python `bread_check_module_compat()` follows.
+- The README, `docs/protocol-versioning.md` and `docs/capabilities.md`
+  state the compatibility rule: the module major is the wire-compatibility
+  number, optional features are caps flags whose absence means the old
+  behaviour, and controllers key on the major and the flags, never on the
+  minor or patch.
+
+### Added
+
+- `DCMT_CAP_ESTOP_HOLD` (bit 7) for DCMT firmware that holds a hardware
+  e-stop the way it holds a latched watchdog trip (feastorg/Slice_DCMT#30):
+  brakes set, position setpoints synced to the encoders, motion commands
+  and brake releases refused while e-stopped, and nothing moves at the
+  release until `SET_BRAKE(0,0)`, setpoints and the mode. Without the bit,
+  a release resumes the stored state, as before. Outside
+  `DCMT_CAP_BASELINE_FLAGS`; Python exports it and `vectors.json` gains
+  the constant.
+- `RLHT_CAP_ESTOP_COUNT` (bit 8) and `RLHT_STATE_OFF_ESTOP_COUNT` (19):
+  RLHT firmware that advertises the flag appends `estop_count` to its
+  19-byte GET_STATE reply. Additive: the RLHT module major stays 1, and
+  older controllers ignore the trailing byte as before. Outside
+  `RLHT_CAP_BASELINE_FLAGS`.
+- `tests/golden_vectors/vectors.json`: every DCMT state record carries
+  `estop_count` and is 20 bytes; every RLHT state record gains
+  `estop_count` (0, or 170 for the existing one-trailing-byte record);
+  three RLHT records add a count of 0, a count of 7 and a byte after the
+  count. The Python length-rule test reads the RLHT optional byte.
+- `dcmt_parse_set_pid_payload()`: the Slice-side SET_PID parser. It
+  requires exactly `DCMT_SET_PID_PAYLOAD_LEN` bytes, where
+  `dcmt_set_pid_unpack()` accepts trailing bytes.
+- `DCMT_SET_PID_PAYLOAD_LEN`, `DCMT_PID_LOOP_POSITION` (0x01) and
+  `DCMT_PID_LOOP_SPEED` (0x02), with their Python equivalents. The Python
+  `dcmt_send_set_pid()` takes `loop` and six u16 gains.
+- `tests/golden_vectors/vectors.json`: the DCMT `SET_PID` vectors use the
+  new layout, the DCMT module major is 2 in the constants and in the
+  version vectors built from it, and the new constants are added. No other
+  record changes.
+
 ## [0.6.0] - 2026-10-05
 
 ### Changed

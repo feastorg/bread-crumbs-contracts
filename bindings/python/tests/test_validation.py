@@ -17,6 +17,8 @@ I16 = (-0x8000, 0x7FFF)
 PID_OK = {
     "kp1_x10": 0, "ki1_x10": 0, "kd1_x10": 0, "kp2_x10": 0, "ki2_x10": 0, "kd2_x10": 0
 }  # fmt: skip
+DCMT_PID_GAINS = ("kp1_x1000", "ki1_x1000", "kd1_x1000", "kp2_x1000", "ki2_x1000", "kd2_x1000")
+DCMT_PID_OK = {"loop": 1, **dict.fromkeys(DCMT_PID_GAINS, 0)}
 
 # (encoder, in-range kwargs, field under test, bounds)
 RANGE_CASES: list[tuple[Callable[..., bytes], dict[str, int], str, tuple[int, int]]] = [
@@ -38,7 +40,8 @@ RANGE_CASES: list[tuple[Callable[..., bytes], dict[str, int], str, tuple[int, in
     (bcc.dcmt_send_set_mode, {"mode": 0}, "mode", U8),
     (bcc.dcmt_send_set_setpoint, {"target1": 0, "target2": 0}, "target1", I16),
     (bcc.dcmt_send_set_setpoint, {"target1": 0, "target2": 0}, "target2", I16),
-    *[(bcc.dcmt_send_set_pid, PID_OK, field, U8) for field in PID_OK],
+    (bcc.dcmt_send_set_pid, DCMT_PID_OK, "loop", U8),
+    *[(bcc.dcmt_send_set_pid, DCMT_PID_OK, field, U16) for field in DCMT_PID_GAINS],
     (bcc.dcmt_send_set_watchdog, {"timeout_ms": 0}, "timeout_ms", U16),
 ]
 
@@ -92,6 +95,8 @@ PARSER_FIXED_LEN: dict[str, int] = {
     "bread_parse_version": bcc.BREAD_VERSION_PAYLOAD_LEN,
 }
 EXACT_LENGTH_PARSERS = {"dcmt_parse_state_payload", "bread_watchdog_parse_payload"}
+# Optional bytes a prefix parser reads after its fixed length, when present.
+OPTIONAL_TAIL_LEN: dict[str, int] = {"rlht_parse_state_payload": 1}
 
 _FIXED_LEN_PARSE: list[dict[str, Any]] = [
     vec
@@ -112,7 +117,17 @@ def test_parser_length_rule_mirrors_c(vec: dict[str, Any]) -> None:
         with pytest.raises(ValueError):
             parser(payload + b"\xff")
     else:
-        assert parser(payload + b"\xff\x00") == parser(payload)
+        with_tail = payload + b"\x07" * OPTIONAL_TAIL_LEN.get(vec["name"], 0)
+        assert parser(with_tail + b"\xff\x00") == parser(with_tail)
+
+
+def test_rlht_estop_count_is_the_optional_byte() -> None:
+    prefix = bytes(range(1, bcc.RLHT_STATE_FIXED_LEN + 1))
+    without = bcc.rlht_parse_state_payload(prefix)
+    with_count = bcc.rlht_parse_state_payload(prefix + b"\x85")
+    assert without.estop_count == 0
+    assert with_count.estop_count == 0x85
+    assert dataclasses.replace(with_count, estop_count=0) == without
 
 
 @pytest.mark.parametrize("vec", _FIXED_LEN_PARSE, ids=lambda v: v["name"])
@@ -145,7 +160,10 @@ def test_crumbs_compat() -> None:
 
 
 def test_module_compat() -> None:
+    """The major alone decides; the minor never makes a device incompatible."""
     assert bcc.bread_check_module_compat(1, 2, 1, 1) == 0
     assert bcc.bread_check_module_compat(1, 1, 1, 1) == 0
+    assert bcc.bread_check_module_compat(1, 0, 1, 1) == 0
+    assert bcc.bread_check_module_compat(1, 0, 1, 255) == 0
     assert bcc.bread_check_module_compat(2, 0, 1, 0) == -1
-    assert bcc.bread_check_module_compat(1, 0, 1, 1) == -2
+    assert bcc.bread_check_module_compat(0, 9, 1, 0) == -1

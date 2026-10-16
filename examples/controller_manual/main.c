@@ -345,7 +345,7 @@ static void print_help(void)
     printf("  brake <m1> <m2>\n");
     printf("  mode <open|pos|speed|0|1|2>\n");
     printf("  setpoint <t1> <t2>\n");
-    printf("  pid <kp1 ki1 kd1 kp2 ki2 kd2> (x10 units)\n\n");
+    printf("  pid <pos|speed> <kp1 ki1 kd1 kp2 ki2 kd2> (x1000 units)\n\n");
 }
 
 static void cmd_list(void)
@@ -775,6 +775,8 @@ static int cmd_dcmt(const device_info_t *info, const char *rest)
 
     if (strcmp(sub, "pid") == 0)
     {
+        char loop_s[16];
+        uint8_t loop;
         unsigned int kp1, ki1, kd1, kp2, ki2, kd2;
         uint8_t caps_schema = 0;
         uint8_t caps_level = 0;
@@ -785,11 +787,28 @@ static int cmd_dcmt(const device_info_t *info, const char *rest)
             printf("DCMT pid tuning unsupported by reported capabilities.\n");
             return -2;
         }
-        if (sscanf(rest, "%u %u %u %u %u %u", &kp1, &ki1, &kd1, &kp2, &ki2, &kd2) != 6)
+        if (sscanf(rest, "%15s %u %u %u %u %u %u", loop_s, &kp1, &ki1, &kd1, &kp2, &ki2, &kd2) != 7)
             return -1;
-        return dcmt_send_set_pid(dev,
-                                 (uint8_t)kp1, (uint8_t)ki1, (uint8_t)kd1,
-                                 (uint8_t)kp2, (uint8_t)ki2, (uint8_t)kd2);
+        if (kp1 > UINT16_MAX || ki1 > UINT16_MAX || kd1 > UINT16_MAX ||
+            kp2 > UINT16_MAX || ki2 > UINT16_MAX || kd2 > UINT16_MAX)
+        {
+            printf("DCMT pid gains are 0..65535 (x1000 units).\n");
+            return -1;
+        }
+        if (strcmp(loop_s, "pos") == 0)
+            loop = DCMT_PID_LOOP_POSITION;
+        else if (strcmp(loop_s, "speed") == 0)
+            loop = DCMT_PID_LOOP_SPEED;
+        else
+            return -1;
+        if (loop == DCMT_PID_LOOP_SPEED && (caps_flags & DCMT_CAP_CLOSED_LOOP_SPEED) == 0)
+        {
+            printf("DCMT speed loop unsupported by reported capabilities.\n");
+            return -2;
+        }
+        return dcmt_send_set_pid(dev, loop,
+                                 (uint16_t)kp1, (uint16_t)ki1, (uint16_t)kd1,
+                                 (uint16_t)kp2, (uint16_t)ki2, (uint16_t)kd2);
     }
 
     return -1;

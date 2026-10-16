@@ -64,11 +64,10 @@ def bread_check_module_compat(
 ) -> int:
     """``bread_check_module_compat``.
 
-    Returns 0 when compatible, -1 when MAJOR differs, -2 when the
-    peripheral MINOR is below the expected MINOR. PATCH is ignored.
+    Returns 0 when the module MAJOR matches and -1 when it differs. The
+    MAJOR is the wire-compatibility number; MINOR is ignored, because
+    optional features are gated on caps flags. Before 0.7.0 an older
+    peripheral MINOR returned -2; nothing returns -2 now.
     """
-    if peri_major != expect_major:
-        return -1
-    if peri_minor < expect_minor:
-        return -2
-    return 0
+    del peri_minor, expect_minor
+    return 0 if peri_major == expect_major else -1

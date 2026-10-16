@@ -30,6 +30,30 @@ If `GET_CAPS` fails:
 
 Generation mapping is informational only; runtime caps remain authoritative.
 
+## DCMT Module Major 2
+
+Contracts 0.7.0 changed the DCMT `SET_PID` layout, appended `estop_count`
+to the DCMT GET_STATE reply (20 bytes) and set
+`DCMT_MODULE_VER_MAJOR` to 2. A controller built against 0.7.0 or later
+refuses DCMT firmware that reports major 1, and one built against an
+earlier release refuses firmware that reports major 2
+(`bread_check_module_compat()`), so neither sends a `SET_PID` the other
+reads in the wrong layout. Update the DCMT firmware and the controller in
+the same step:
+
+- the controller moves its contracts pin to 0.7.0 and sends the new
+  `SET_PID` (for anolis-provider-bread, anolishq/anolis-provider-bread#147);
+- every DCMT board is reflashed with firmware built against `^0.7.0`. A
+  `^0.6.0` pin, which Slice_DCMT's `platformio.ini` carries today, does
+  not resolve 0.7.0 on 0.x, so the pin changes first;
+- until both sides move, the controller refuses the board: a 0.7.0
+  controller refuses a board that was not reflashed (anolis-provider-bread
+  reports `incompatible_module_major`), and an older controller refuses a
+  reflashed one;
+- RLHT boards need no reflash. RLHT stays major 1 and is wire compatible
+  both ways; only `estop_count` needs RLHT firmware that advertises
+  `RLHT_CAP_ESTOP_COUNT`.
+
 ## Command Watchdog Trip
 
 What clears a latched watchdog trip (`tripped` in the `BREAD_OP_GET_WATCHDOG`
@@ -57,6 +81,30 @@ advertises it.
 
 Firmware rejects a `BREAD_OP_CLEAR_WATCHDOG_TRIP` frame with a non-empty
 payload and leaves the trip set.
+
+## DCMT E-stop Hold
+
+On DCMT firmware that advertises `DCMT_CAP_ESTOP_HOLD`, a hardware e-stop
+leaves the board as a latched watchdog trip does: both brake flags set
+(visible in `brakes` in GET_STATE) and the position setpoints at the
+encoders. Motion commands and brake releases sent while `estop` is set
+are refused. After the release nothing moves until the controller sends
+`SET_BRAKE(0,0)`, then setpoints, then the mode, the same sequence that
+resumes after a watchdog trip is cleared.
+
+On firmware without the flag, releasing the e-stop resumes the stored
+mode and setpoints, and commands sent during the hold take effect at the
+release. A controller that wants a release to move nothing sends its safe
+state while `estop` is set, and cannot act on a press it never polled.
+
+## E-stop Count
+
+`estop_count` in GET_STATE counts hardware e-stop presses since boot and
+wraps at 255. A controller compares it with the previous poll, modulo 256,
+to see presses that started and ended between polls; a reboot resets it
+to 0. DCMT major 2 always carries it. RLHT carries it when
+`RLHT_CAP_ESTOP_COUNT` is advertised; without the flag, ignore the parsed
+value.
 
 ## Error Handling Expectations
 

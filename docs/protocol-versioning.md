@@ -20,18 +20,30 @@ Device headers expose module constants:
 - `<DEVICE>_MODULE_VER_MINOR`
 - `<DEVICE>_MODULE_VER_PATCH`
 
-## Capability and Version Interaction
+## Compatibility Rule
 
-Compatibility decisions should use both:
+The module major is the wire-compatibility number, and capability flags
+cover optional features. The version reply keeps its 5-byte layout.
 
-1. version query for broad compatibility checks,
-2. capability flags for precise feature gating.
+- A wire-breaking change to a type bumps that type's module major
+  (`RLHT_MODULE_VER_MAJOR`, `DCMT_MODULE_VER_MAJOR`). A controller refuses
+  to actuate a device whose major differs from the one it was built
+  against.
+- An optional feature is a new bit in the existing u32 caps flags. Old
+  firmware advertises no new bit, so each bit is defined so that its
+  absence means the behaviour before the bit existed.
+- Controllers key on the major and on caps flags, never on the module
+  minor or patch.
 
-A device with newer minor version may still be compatible if required flags are present.
+`bread_check_module_compat()` applies the rule: it returns 0 when the
+majors match and -1 when they differ, and ignores both minors. Before
+0.7.0 it also returned -2 for a peripheral minor older than the expected
+one.
 
 ## Breaking-Change Rule
 
 Reinterpreting existing opcode or payload semantics is a breaking change and requires:
 
-- MAJOR version bump, and/or
+- a bump of that type's module major, and a package MAJOR bump (a MINOR
+  bump while the package is 0.x), or
 - new type ID if split is unavoidable.

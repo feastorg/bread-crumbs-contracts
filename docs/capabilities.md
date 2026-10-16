@@ -60,6 +60,15 @@ Flags:
   Advertised only together with `DCMT_CAP_CMD_WATCHDOG`. Controllers must
   not send `BREAD_OP_CLEAR_WATCHDOG_TRIP` unless this flag is advertised; on
   firmware without it, `BREAD_OP_SET_WATCHDOG` clears the trip
+- bit 7: `DCMT_CAP_ESTOP_HOLD` — a hardware e-stop holds the way a latched
+  watchdog trip does. On a press the firmware sets both brake flags and
+  moves the position setpoints to the encoders, re-syncing them while the
+  e-stop is held. While e-stopped it refuses `SET_OPEN_LOOP`,
+  `SET_SETPOINT`, `SET_MODE` and any brake release. Releasing the e-stop
+  moves nothing; the controller resumes with `SET_BRAKE(0,0)`, then
+  setpoints, then the mode. On firmware without the flag, a release
+  resumes the stored mode and setpoints, including commands sent during
+  the hold
 
 Baseline flag set:
 
@@ -92,13 +101,25 @@ Flags:
   Advertised only together with `RLHT_CAP_CMD_WATCHDOG`. Controllers must
   not send `BREAD_OP_CLEAR_WATCHDOG_TRIP` unless this flag is advertised; on
   firmware without it, `BREAD_OP_SET_WATCHDOG` clears the trip
+- bit 8: `RLHT_CAP_ESTOP_COUNT` — the GET_STATE reply appends
+  `[estop_count:u8]` after its 19 bytes (`RLHT_STATE_OFF_ESTOP_COUNT`):
+  hardware e-stop presses since boot, wrapping at 255. On firmware without
+  the flag the reply is 19 bytes and `rlht_parse_state_payload()` reports
+  `estop_count` 0, which a controller must not read as a count
 
 Baseline flag set:
 
 - `RLHT_CAP_BASELINE_FLAGS` (all currently supported RLHT control features;
-  does not include `RLHT_CAP_CMD_WATCHDOG` or `RLHT_CAP_CLEAR_WATCHDOG_TRIP`)
+  does not include `RLHT_CAP_CMD_WATCHDOG`, `RLHT_CAP_CLEAR_WATCHDOG_TRIP` or
+  `RLHT_CAP_ESTOP_COUNT`)
 
 ## Extension Policy
+
+Optional features are capability flags; the module major is the
+wire-compatibility number (`protocol-versioning.md`). A new flag is
+defined so that its absence means the behaviour before the flag existed,
+because old firmware advertises no new bit. Controllers gate features on
+flags, never on the module minor or patch.
 
 Capability evolution is additive-only:
 

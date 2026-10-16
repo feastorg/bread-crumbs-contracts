@@ -31,11 +31,15 @@ extern "C"
     X(DCMT_OP_SET_BRAKE, 0x02)     /* dcmt_set_brake, 2 bytes */         \
     X(DCMT_OP_SET_MODE, 0x03)      /* dcmt_set_mode, 1 byte */           \
     X(DCMT_OP_SET_SETPOINT, 0x04)  /* dcmt_set_setpoint, 4 bytes */      \
-    X(DCMT_OP_SET_PID, 0x05)       /* dcmt_set_pid, 6 bytes */           \
-    X(DCMT_OP_GET_STATE, 0x80)     /* reply dcmt_state, 19 bytes */
+    X(DCMT_OP_SET_PID, 0x05)       /* dcmt_set_pid, 13 bytes */          \
+    X(DCMT_OP_GET_STATE, 0x80)     /* reply dcmt_state, 20 bytes */
 CRUMBS_DEFINE_FAMILY(DCMT, 0x02, DCMT_OPS)
 
-#define DCMT_MODULE_VER_MAJOR 1
+/* Major 2 since contracts 0.7.0: SET_PID changed layout (u16 gains x1000
+   and a loop selector) and GET_STATE gained estop_count. A controller
+   built for one major refuses firmware reporting the other
+   (docs/protocol-versioning.md). */
+#define DCMT_MODULE_VER_MAJOR 2
 #define DCMT_MODULE_VER_MINOR 0
 #define DCMT_MODULE_VER_PATCH 0
 
@@ -55,22 +59,45 @@ CRUMBS_DEFINE_PAYLOAD(dcmt_set_mode, 1, DCMT_SET_MODE_FIELDS)
 #define DCMT_SET_SETPOINT_FIELDS(X) X(i16, target1) X(i16, target2)
 CRUMBS_DEFINE_PAYLOAD(dcmt_set_setpoint, 4, DCMT_SET_SETPOINT_FIELDS)
 
-/* SET_PID: [kp1][ki1][kd1][kp2][ki2][kd2], each u8, gain x10 */
+/*
+ * SET_PID (13 bytes):
+ *   [loop:u8][kp1:u16][ki1:u16][kd1:u16][kp2:u16][ki2:u16][kd2:u16]
+ * Each gain is u16 x1000 (0 to 65.535); 1 is motor 1, 2 is motor 2. loop
+ * (DCMT_PID_LOOP_*) names the control loop of both motors the gains are
+ * for; the other loop keeps its gains. Firmware rejects a payload whose
+ * length is not DCMT_SET_PID_PAYLOAD_LEN (dcmt_parse_set_pid_payload())
+ * and a loop value it does not define, and applies nothing. Send
+ * DCMT_PID_LOOP_SPEED only when DCMT_CAP_CLOSED_LOOP_SPEED is advertised.
+ * Until contracts 0.7.0 (module major 1) the payload was six u8 gains x10.
+ */
 #define DCMT_SET_PID_FIELDS(X) \
-    X(u8, kp1_x10)             \
-    X(u8, ki1_x10)             \
-    X(u8, kd1_x10)             \
-    X(u8, kp2_x10)             \
-    X(u8, ki2_x10)             \
-    X(u8, kd2_x10)
-CRUMBS_DEFINE_PAYLOAD(dcmt_set_pid, 6, DCMT_SET_PID_FIELDS)
+    X(u8, loop)                \
+    X(u16, kp1_x1000)          \
+    X(u16, ki1_x1000)          \
+    X(u16, kd1_x1000)          \
+    X(u16, kp2_x1000)          \
+    X(u16, ki2_x1000)          \
+    X(u16, kd2_x1000)
+CRUMBS_DEFINE_PAYLOAD(dcmt_set_pid, 13, DCMT_SET_PID_FIELDS)
 
-// Fixed GET_STATE payload layout (19 bytes):
+#define DCMT_SET_PID_PAYLOAD_LEN 13
+CRUMBS_STATIC_ASSERT(DCMT_SET_PID_PAYLOAD_LEN == dcmt_set_pid_wire_size,
+                     "DCMT_SET_PID_PAYLOAD_LEN must equal the dcmt_set_pid field list");
+
+#define DCMT_PID_LOOP_POSITION 0x01
+#define DCMT_PID_LOOP_SPEED 0x02
+
+// Fixed GET_STATE payload layout (20 bytes):
 // [mode:u8][m1_pwm:i16][m2_pwm:i16][sp1:i16][sp2:i16]
-// [pos1:i16][pos2:i16][spd1:i16][spd2:i16][brakes:u8][estop:u8]
+// [pos1:i16][pos2:i16][spd1:i16][spd2:i16][brakes:u8][estop:u8][estop_count:u8]
+//
+// estop_count counts hardware e-stop presses since boot and wraps at 255
+// (like the watchdog's trip_count), so a controller sees a press it did not
+// poll during. Module major 1 firmware sent the first 19 bytes only.
 //
 // Field validity:
-//   Always valid (never sentinel): m1_pwm, m2_pwm, pos1, pos2, mode, brakes, estop
+//   Always valid (never sentinel): m1_pwm, m2_pwm, pos1, pos2, mode, brakes, estop,
+//   estop_count
 //   Sentinel-eligible (may be BREAD_INVALID_I16):
 //     sp1/sp2  -> BREAD_INVALID_I16 when mode == DCMT_MODE_OPEN_LOOP
 //     spd1/spd2 -> BREAD_INVALID_I16 unless mode == DCMT_MODE_CLOSED_SPEED
@@ -86,8 +113,9 @@ CRUMBS_DEFINE_PAYLOAD(dcmt_set_pid, 6, DCMT_SET_PID_FIELDS)
     X(i16, spd1)   /* tachometer speed; BREAD_INVALID_I16 unless CLOSED_SPEED */ \
     X(i16, spd2)                                                                 \
     X(u8, brakes)                                                                \
-    X(u8, estop)
-CRUMBS_DEFINE_PAYLOAD(dcmt_state, 19, DCMT_STATE_FIELDS)
+    X(u8, estop)                                                                 \
+    X(u8, estop_count) /* e-stop presses since boot, wraps at 255 */
+CRUMBS_DEFINE_PAYLOAD(dcmt_state, 20, DCMT_STATE_FIELDS)
 
 /* The parser's result is the payload struct itself. */
 typedef dcmt_state_t dcmt_state_result_t;
@@ -105,7 +133,8 @@ typedef dcmt_state_t dcmt_state_result_t;
 #define DCMT_STATE_OFF_SPD2 15
 #define DCMT_STATE_OFF_BRAKES 17
 #define DCMT_STATE_OFF_ESTOP 18
-#define DCMT_STATE_FIXED_LEN 19
+#define DCMT_STATE_OFF_ESTOP_COUNT 19
+#define DCMT_STATE_FIXED_LEN 20
 CRUMBS_STATIC_ASSERT(DCMT_STATE_FIXED_LEN == dcmt_state_wire_size,
                      "DCMT_STATE_FIXED_LEN must equal the dcmt_state field list");
 
@@ -129,6 +158,13 @@ CRUMBS_STATIC_ASSERT(DCMT_STATE_FIXED_LEN == dcmt_state_wire_size,
    and CLEAR_WATCHDOG_TRIP is handled. Advertised only together with
    DCMT_CAP_CMD_WATCHDOG. Without it, SET_WATCHDOG clears the trip. */
 #define DCMT_CAP_CLEAR_WATCHDOG_TRIP ((uint32_t)1u << 6)
+/* A hardware e-stop holds like a latched watchdog trip: on a press the
+   firmware sets both brake flags and moves the position setpoints to the
+   encoders, re-syncing them while the e-stop is held, and while e-stopped
+   it refuses SET_OPEN_LOOP, SET_SETPOINT, SET_MODE and any brake release.
+   A release moves nothing; resume with SET_BRAKE(0,0), then setpoints, then
+   the mode. Without it, a release resumes the stored mode and setpoints. */
+#define DCMT_CAP_ESTOP_HOLD ((uint32_t)1u << 7)
 
 #define DCMT_CAP_BASELINE_FLAGS (DCMT_CAP_OPEN_LOOP_CONTROL | DCMT_CAP_BRAKE_CONTROL)
 
@@ -207,20 +243,22 @@ static inline int dcmt_send_set_setpoint(const crumbs_device_t *dev, int16_t tar
     return crumbs_controller_send(dev->ctx, dev->addr, &msg, dev->write_fn, dev->io);
 }
 
-static inline int dcmt_send_set_pid(const crumbs_device_t *dev,
-                                    uint8_t kp1_x10, uint8_t ki1_x10, uint8_t kd1_x10,
-                                    uint8_t kp2_x10, uint8_t ki2_x10, uint8_t kd2_x10)
+/* loop is DCMT_PID_LOOP_*; each gain is the gain x1000. */
+static inline int dcmt_send_set_pid(const crumbs_device_t *dev, uint8_t loop,
+                                    uint16_t kp1_x1000, uint16_t ki1_x1000, uint16_t kd1_x1000,
+                                    uint16_t kp2_x1000, uint16_t ki2_x1000, uint16_t kd2_x1000)
 {
     crumbs_message_t msg;
     dcmt_set_pid_t v;
     if (dcmt_validate_write_device(dev) != 0)
         return -1;
-    v.kp1_x10 = kp1_x10;
-    v.ki1_x10 = ki1_x10;
-    v.kd1_x10 = kd1_x10;
-    v.kp2_x10 = kp2_x10;
-    v.ki2_x10 = ki2_x10;
-    v.kd2_x10 = kd2_x10;
+    v.loop = loop;
+    v.kp1_x1000 = kp1_x1000;
+    v.ki1_x1000 = ki1_x1000;
+    v.kd1_x1000 = kd1_x1000;
+    v.kp2_x1000 = kp2_x1000;
+    v.ki2_x1000 = ki2_x1000;
+    v.kd2_x1000 = kd2_x1000;
     crumbs_msg_init(&msg, DCMT_TYPE_ID, DCMT_OP_SET_PID);
     if (dcmt_set_pid_pack(&msg, &v) != 0)
         return -1;
@@ -303,6 +341,22 @@ typedef struct
     uint32_t flags;
 } dcmt_caps_result_t;
 
+
+/*
+ * Parse a SET_PID payload, for the Slice. The payload must be exactly
+ * DCMT_SET_PID_PAYLOAD_LEN bytes; anything else returns -1 and leaves out
+ * untouched. dcmt_set_pid_unpack() alone accepts trailing bytes, so firmware
+ * uses this instead. It does not check loop: firmware rejects a value it
+ * does not define.
+ */
+static inline int dcmt_parse_set_pid_payload(const uint8_t *data, uint8_t data_len, dcmt_set_pid_t *out)
+{
+    if (!data || !out)
+        return -1;
+    if (data_len != DCMT_SET_PID_PAYLOAD_LEN)
+        return -1;
+    return dcmt_set_pid_unpack(data, data_len, out);
+}
 
 /*
  * Parse a DCMT GET_STATE payload into a state result. Shared by

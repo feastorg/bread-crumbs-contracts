@@ -30,6 +30,14 @@ Payload v1:
 
 Controller flow: version query -> caps query -> command gating.
 
+The module major in the version reply is the wire-compatibility number: a
+controller refuses to actuate a device whose major differs from the one it
+was built against. Optional features are capability flags, each defined so
+that its absence means the behaviour before the flag existed. Controllers
+key on the major and on flags, never on the module minor or patch;
+`bread_check_module_compat()` checks the major only. See
+`docs/protocol-versioning.md`.
+
 ## Command Watchdog
 
 BREAD defines a shared bus-liveness command watchdog, gated per type by a
@@ -50,6 +58,46 @@ flag, `BREAD_OP_SET_WATCHDOG` and any other valid command frame still clear
 it. A controller that predates the flag cannot clear a trip remotely on
 firmware that advertises it; see `docs/controller-compatibility.md`.
 
+## DCMT SET_PID
+
+DCMT module major 2 (contracts 0.7.0) changed `DCMT_OP_SET_PID`:
+
+- `[loop:u8][kp1:u16][ki1:u16][kd1:u16][kp2:u16][ki2:u16][kd2:u16]`,
+  13 bytes (`DCMT_SET_PID_PAYLOAD_LEN`). Each gain is the gain x1000
+  (0 to 65.535); 1 is motor 1, 2 is motor 2.
+- `loop` is `DCMT_PID_LOOP_POSITION` (0x01) or `DCMT_PID_LOOP_SPEED`
+  (0x02): the gains go to that loop of both motors, and the other loop
+  keeps its gains. Send `DCMT_PID_LOOP_SPEED` only when
+  `DCMT_CAP_CLOSED_LOOP_SPEED` is advertised.
+- Firmware rejects a `SET_PID` payload whose length is not
+  `DCMT_SET_PID_PAYLOAD_LEN`, short or long, and one whose `loop` it does
+  not define, and applies none of it. `dcmt_parse_set_pid_payload()`
+  applies the length rule; `dcmt_set_pid_unpack()` alone accepts trailing
+  bytes.
+
+Major 1 firmware read six u8 gains x10. A controller built against one
+major refuses DCMT firmware reporting the other, so firmware and
+controller move to major 2 together: the controller moves its contracts
+pin to 0.7.0, and every DCMT board is reflashed with firmware built
+against `^0.7.0` (a `^0.6.0` pin does not resolve 0.7.0). Until both
+sides move, the controller refuses the board. RLHT stays major 1, so
+RLHT boards need no reflash; RLHT's `SET_PID` is unchanged.
+
+## E-stop Count
+
+Both state replies carry `estop_count`, a u8 count of hardware e-stop
+presses since boot that wraps at 255, like the watchdog's `trip_count`. A
+press and release between two polls leaves `estop` clear but moves the
+count, so a controller sees a press it missed.
+
+- DCMT: the last byte of the 20-byte GET_STATE reply
+  (`DCMT_STATE_OFF_ESTOP_COUNT`), part of the module major 2 layout.
+- RLHT: appended after the 19-byte reply (`RLHT_STATE_OFF_ESTOP_COUNT`) by
+  firmware that advertises `RLHT_CAP_ESTOP_COUNT`. The RLHT major stays 1:
+  `rlht_parse_state_payload()` already ignored trailing bytes, so older
+  controllers read the 20-byte reply as before. Without the flag the reply
+  is 19 bytes and the parsed `estop_count` is 0.
+
 ## Current Device Contracts
 
 - RLHT: `include/bread/rlht_ops.h`
@@ -65,7 +113,7 @@ In your project `platformio.ini`:
 ```ini
 lib_deps =
   cameronbrooks11/CRUMBS @ ^0.14.0
-  cameronbrooks11/bread-crumbs-contracts @ ^0.6.0
+  cameronbrooks11/bread-crumbs-contracts @ ^0.7.0
 ```
 
 Controller source:
@@ -158,8 +206,9 @@ assert (CRUMBS_TYPE_ID_ANY, CRUMBS_CMD_SET_REPLY, request.hex()) == (0x00, 0xFE,
 
 # The GET_STATE reply payload read back through the transport. Each parser
 # applies the length rule of its C namesake: rlht_parse_state_payload reads
-# the 19-byte prefix and ignores trailing bytes; dcmt_parse_state_payload
-# and bread_watchdog_parse_payload require the exact length. Making the
+# the 19-byte prefix, then the optional estop_count byte, and ignores the
+# rest; dcmt_parse_state_payload and bread_watchdog_parse_payload require
+# the exact length. Making the
 # rule uniform would change a golden vector, so it is a decision of its own.
 state = rlht_parse_state_payload(bytes.fromhex("0002f401f6fffa002c016400c800e803d00706"))
 assert (state.t1_deci_c, state.t2_deci_c, state.tc1, state.tc2) == (500, -10, 2, 1)

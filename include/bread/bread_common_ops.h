@@ -3,7 +3,6 @@
 
 #include <stdint.h>
 
-#include "crumbs_ops.h"
 #include "bread_caps.h"
 #include "bread_watchdog.h"
 
@@ -20,6 +19,14 @@
     X(BREAD_OP_SET_WATCHDOG, BREAD_OP_SET_WATCHDOG)                 \
     X(BREAD_OP_GET_CAPS, BREAD_OP_GET_CAPS)
 
+/* Function-like, so the header scan in test_opcode_coverage.py does not
+   take it for a value define. */
+#if defined(__GNUC__) || defined(__clang__)
+#define BREAD_UNUSED_FN_() __attribute__((unused))
+#else
+#define BREAD_UNUSED_FN_()
+#endif
+
 #define BREAD_OP_CASE_(name, value) \
     case (value):                   \
         break;
@@ -27,20 +34,20 @@
 /*
  * Call after CRUMBS_DEFINE_FAMILY(PREFIX, type_id, OPS): the build fails
  * with a duplicate case value if an opcode in OPS equals a common opcode.
- * Like the CRUMBS check, it is an unused static inline function, marked
- * with the same CRUMBS_UNUSED_FN_, whose switch lists both sets of
- * opcodes.
+ * Like the CRUMBS check, it is an unused static inline function whose
+ * switch lists both sets of opcodes; the unused attribute keeps clang's
+ * -Wunused-function quiet where the macro expands in a source file.
  */
-#define BREAD_CHECK_FAMILY_OPS(PREFIX, OPS)                                         \
-    CRUMBS_UNUSED_FN_ static inline void PREFIX##_opcodes_avoid_common_(uint8_t op) \
-    {                                                                               \
-        switch (op)                                                                 \
-        {                                                                           \
-            OPS(BREAD_OP_CASE_)                                                     \
-            BREAD_COMMON_OPS(BREAD_OP_CASE_)                                        \
-        default:                                                                    \
-            break;                                                                  \
-        }                                                                           \
+#define BREAD_CHECK_FAMILY_OPS(PREFIX, OPS)                                          \
+    BREAD_UNUSED_FN_() static inline void PREFIX##_opcodes_avoid_common_(uint8_t op) \
+    {                                                                                \
+        switch (op)                                                                  \
+        {                                                                            \
+            OPS(BREAD_OP_CASE_)                                                      \
+            BREAD_COMMON_OPS(BREAD_OP_CASE_)                                         \
+        default:                                                                     \
+            break;                                                                   \
+        }                                                                            \
     }
 
 #endif /* BREAD_COMMON_OPS_H */

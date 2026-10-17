@@ -26,6 +26,10 @@ CRUMBS' `crumbs_ops.h` (CRUMBS 0.14.0 or newer):
 
 - `CRUMBS_DEFINE_FAMILY(RLHT, 0x01, RLHT_OPS)` declares `RLHT_TYPE_ID` and the
   `RLHT_OP_*` constants; the build fails on a duplicate opcode.
+- `BREAD_CHECK_FAMILY_OPS(RLHT, RLHT_OPS)` follows it and fails the build if
+  an opcode equals a bread-common one (`BREAD_COMMON_OPS` in
+  `bread_common_ops.h`: the watchdog ops 0x7C-0x7E and `BREAD_OP_GET_CAPS`
+  0x7F), which the CRUMBS check does not cover.
 - `CRUMBS_DEFINE_PAYLOAD(rlht_set_setpoints, 4, RLHT_SET_SETPOINTS_FIELDS)`
   declares `rlht_set_setpoints_t`, `rlht_set_setpoints_wire_size`,
   `rlht_set_setpoints_pack()` and `rlht_set_setpoints_unpack()`; the build

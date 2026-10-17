@@ -65,6 +65,28 @@ if(BREAD_CONTRACTS_BUILD_TESTS)
         endif()
     endif()
 
+    # BREAD_CHECK_FAMILY_OPS: a family opcode equal to any bread-common
+    # opcode must fail to compile with the message on the source's first
+    # line. The targets are built only by their tests, and a build that
+    # fails for any other reason fails the test.
+    file(STRINGS tests/compile_fail/common_opcode_clash.c common_opcode_clash_line LIMIT_COUNT 1)
+    if(NOT common_opcode_clash_line MATCHES "^/\\* Must fail to compile with: (.+) \\*/$")
+        message(FATAL_ERROR "tests/compile_fail/common_opcode_clash.c: first line must name the expected message")
+    endif()
+    set(common_opcode_clash_message "${CMAKE_MATCH_1}")
+    foreach(opcode 0x7C 0x7D 0x7E 0x7F)
+        add_library(compile_fail_common_opcode_${opcode} OBJECT EXCLUDE_FROM_ALL tests/compile_fail/common_opcode_clash.c)
+        target_link_libraries(compile_fail_common_opcode_${opcode} PRIVATE bread::contracts)
+        target_compile_definitions(compile_fail_common_opcode_${opcode} PRIVATE CLASH_OPCODE=${opcode})
+        if(BUILD_TESTING)
+            add_test(NAME bread_contracts_compile_fail_common_opcode_${opcode}
+                     COMMAND ${CMAKE_COMMAND} --build ${CMAKE_BINARY_DIR} --target compile_fail_common_opcode_${opcode})
+            set_tests_properties(bread_contracts_compile_fail_common_opcode_${opcode} PROPERTIES
+                PASS_REGULAR_EXPRESSION "${common_opcode_clash_message}"
+                ENVIRONMENT "LC_ALL=C")
+        endif()
+    endforeach()
+
     # Writes tests/golden_vectors/vectors.json from the real headers; CI
     # regenerates the file and fails on any difference.
     add_executable(bread_contracts_gen_vectors tests/golden_vectors/gen_vectors.c)

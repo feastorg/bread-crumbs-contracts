@@ -12,6 +12,7 @@
 #include "crumbs_message_helpers.h"
 #include "crumbs_ops.h"
 #include "bread_caps.h"
+#include "bread_common_ops.h"
 #include "bread_watchdog.h"
 
 #ifdef __cplusplus
@@ -21,7 +22,8 @@ extern "C"
 
 /*
  * Type and opcodes, declared once: the build fails on a duplicate opcode,
- * an opcode above 0xFF or equal to 0xFE, or a type of 0x00. Each payload
+ * an opcode above 0xFF or equal to 0xFE, an opcode equal to a bread-common
+ * one (0x7C-0x7F, BREAD_COMMON_OPS), or a type of 0x00. Each payload
  * layout is declared once below and packed and unpacked through the
  * generated codec by the wrappers here; Slice firmware is meant to use the
  * same pack/unpack (feastorg/Slice_RLHT#11, feastorg/Slice_DCMT#28).
@@ -34,6 +36,7 @@ extern "C"
     X(DCMT_OP_SET_PID, 0x05)       /* dcmt_set_pid, 13 bytes */          \
     X(DCMT_OP_GET_STATE, 0x80)     /* reply dcmt_state, 20 bytes */
 CRUMBS_DEFINE_FAMILY(DCMT, 0x02, DCMT_OPS)
+BREAD_CHECK_FAMILY_OPS(DCMT, DCMT_OPS)
 
 /* Major 2 since contracts 0.7.0: SET_PID changed layout (u16 gains x1000
    and a loop selector) and GET_STATE gained estop_count. A controller

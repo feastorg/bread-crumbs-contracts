@@ -12,6 +12,7 @@
 #include "crumbs_message_helpers.h"
 #include "crumbs_ops.h"
 #include "bread_caps.h"
+#include "bread_common_ops.h"
 #include "bread_watchdog.h"
 
 #ifdef __cplusplus
@@ -21,7 +22,8 @@ extern "C"
 
 /*
  * Type and opcodes, declared once: the build fails on a duplicate opcode,
- * an opcode above 0xFF or equal to 0xFE, or a type of 0x00. Each payload
+ * an opcode above 0xFF or equal to 0xFE, an opcode equal to a bread-common
+ * one (0x7C-0x7F, BREAD_COMMON_OPS), or a type of 0x00. Each payload
  * layout is declared once below and packed and unpacked through the
  * generated codec by the wrappers here; Slice firmware is meant to use the
  * same pack/unpack (feastorg/Slice_RLHT#11, feastorg/Slice_DCMT#28).
@@ -35,6 +37,7 @@ extern "C"
     X(RLHT_OP_SET_OPEN_DUTY, 0x06) /* rlht_set_open_duty, 2 bytes */   \
     X(RLHT_OP_GET_STATE, 0x80)     /* reply rlht_state, 19 or 20 bytes */
 CRUMBS_DEFINE_FAMILY(RLHT, 0x01, RLHT_OPS)
+BREAD_CHECK_FAMILY_OPS(RLHT, RLHT_OPS)
 
 #define RLHT_MODULE_VER_MAJOR 1
 #define RLHT_MODULE_VER_MINOR 0

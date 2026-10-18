@@ -2,6 +2,19 @@
 
 ## [Unreleased]
 
+### Changed
+
+- Requires CRUMBS 0.16.0: `library.json` `^0.16.0`, and
+  `find_package(crumbs 0.16)` in the build, the installed package config
+  and both examples. CI and the release workflow build against the CRUMBS
+  0.16.0 release. CRUMBS 0.16.0 adds SET acknowledgement
+  (`CRUMBS_CMD_GET_ACK`). It needs both the Slice firmware and the
+  controller on 0.16.0: a controller checks the peripheral's version
+  reply against `CRUMBS_ACK_MIN_VERSION` (1600). Older pairs keep working
+  without it. On 0.x the old `^0.14.0` range does not admit 0.16.0. No
+  header, opcode or payload changes, and `vectors.json` is unchanged; no
+  contract opcode is 0xFD, which CRUMBS 0.16.0 reserves for GET_ACK.
+
 ### Fixed
 
 - A family opcode equal to a bread-common opcode (0x7C-0x7F: the three

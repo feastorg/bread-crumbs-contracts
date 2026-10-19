@@ -125,10 +125,12 @@ with each:
 
 A reason from `0x80` up is the family's own; the family header defines it.
 
-Slice firmware released before it adopts these reasons never refuses: it
-dispatches every frame through `on_message`, so GET_ACK reports each one
-applied, including commands the firmware ignored. On such firmware,
-"applied" means only that the frame arrived.
+Trust "applied" only when GET_CAPS advertises `DCMT_CAP_REFUSES` or
+`RLHT_CAP_REFUSES`. Firmware without the flag never refuses: it dispatches
+every frame through `on_message`, so GET_ACK reports each one applied,
+including commands the firmware ignored. On such firmware, "applied" means
+only that the frame arrived, and a controller confirms the effect in
+GET_STATE.
 
 ## Error Handling Expectations
 

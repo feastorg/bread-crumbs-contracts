@@ -117,7 +117,12 @@ families share:
 
 `0x00` is never a refusal reason, since CRUMBS reports it for an applied
 command, and `0x80`-`0xFF` are left to the families. A released value never
-changes meaning. See `docs/controller-compatibility.md`.
+changes meaning.
+
+Firmware that refuses this way advertises `DCMT_CAP_REFUSES` or
+`RLHT_CAP_REFUSES`. Without the flag, the firmware never refuses and GET_ACK
+reports every frame applied, so "applied" proves only that the frame
+arrived. See `docs/controller-compatibility.md`.
 
 ## Current Device Contracts
 

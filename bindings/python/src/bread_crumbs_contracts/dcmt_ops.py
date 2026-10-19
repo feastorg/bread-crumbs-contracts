@@ -28,6 +28,7 @@ __all__ = [
     "DCMT_CAP_LEVEL_3",
     "DCMT_CAP_OPEN_LOOP_CONTROL",
     "DCMT_CAP_PID_TUNING",
+    "DCMT_CAP_REFUSES",
     "DCMT_MODE_CLOSED_POSITION",
     "DCMT_MODE_CLOSED_SPEED",
     "DCMT_MODE_OPEN_LOOP",
@@ -140,6 +141,10 @@ DCMT_CAP_CLEAR_WATCHDOG_TRIP = 1 << 6
 #: refused while e-stopped; a release moves nothing. Without this flag, a
 #: release resumes the stored mode and setpoints.
 DCMT_CAP_ESTOP_HOLD = 1 << 7
+#: A SET the firmware does not act on is refused with a ``BREAD_REFUSE_*``
+#: reason, so GET_ACK's applied means the command was acted on. Without this
+#: flag every frame reports applied, including ones the firmware ignored.
+DCMT_CAP_REFUSES = 1 << 8
 
 DCMT_CAP_BASELINE_FLAGS = DCMT_CAP_OPEN_LOOP_CONTROL | DCMT_CAP_BRAKE_CONTROL
 

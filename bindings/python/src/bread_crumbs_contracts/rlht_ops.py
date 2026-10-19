@@ -27,6 +27,7 @@ __all__ = [
     "RLHT_CAP_OPEN_DUTY_CONTROL",
     "RLHT_CAP_PERIOD_CONTROL",
     "RLHT_CAP_PID_TUNING",
+    "RLHT_CAP_REFUSES",
     "RLHT_CAP_SETPOINT_CONTROL",
     "RLHT_CAP_TC_SELECT",
     "RLHT_FLAG_ESTOP",
@@ -103,6 +104,10 @@ RLHT_CAP_CLEAR_WATCHDOG_TRIP = 1 << 7
 #: The GET_STATE reply carries ``estop_count`` after the 19-byte layout.
 #: Without it the reply is 19 bytes and ``estop_count`` parses as 0.
 RLHT_CAP_ESTOP_COUNT = 1 << 8
+#: A SET the firmware does not act on is refused with a ``BREAD_REFUSE_*``
+#: reason, so GET_ACK's applied means the command was acted on. Without this
+#: flag every frame reports applied, including ones the firmware ignored.
+RLHT_CAP_REFUSES = 1 << 9
 
 RLHT_CAP_BASELINE_FLAGS = (
     RLHT_CAP_MODE_CONTROL

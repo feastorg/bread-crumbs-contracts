@@ -11,8 +11,13 @@
   `0x05` not built, `0x06` wrong mode, `0x07` unknown opcode. `0x00` is
   never a refusal reason, and `0x80`-`0xFF` are left to the families.
   `bread_common_ops.h` and `bread_ops.h` include it. The values are
-  pinned in the compile smoke test and in `vectors.json`, and nothing
-  else in the headers changes.
+  pinned in the compile smoke test and in `vectors.json`.
+- `DCMT_CAP_REFUSES` (bit 8) and `RLHT_CAP_REFUSES` (bit 9): the firmware
+  refuses a SET it does not act on with a `BREAD_REFUSE_*` reason, so
+  GET_ACK's applied means the command was acted on. Firmware without the
+  flag reports every frame applied, including ones it ignored. Neither
+  flag is in its family's baseline set, and no other caps bit, opcode or
+  payload changes.
 
 ## [0.8.0] - 2026-10-18
 

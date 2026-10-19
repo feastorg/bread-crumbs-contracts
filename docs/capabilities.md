@@ -69,6 +69,11 @@ Flags:
   setpoints, then the mode. On firmware without the flag, a release
   resumes the stored mode and setpoints, including commands sent during
   the hold
+- bit 8: `DCMT_CAP_REFUSES` — a SET the firmware does not act on is
+  refused with `crumbs_refuse()` and a `BREAD_REFUSE_*` reason
+  (`bread_refuse.h`), so GET_ACK's applied means the command was acted on.
+  On firmware without the flag every frame reports applied, including ones
+  the firmware ignored
 
 Baseline flag set:
 
@@ -106,12 +111,17 @@ Flags:
   hardware e-stop presses since boot, wrapping at 255. On firmware without
   the flag the reply is 19 bytes and `rlht_parse_state_payload()` reports
   `estop_count` 0, which a controller must not read as a count
+- bit 9: `RLHT_CAP_REFUSES` — a SET the firmware does not act on is
+  refused with `crumbs_refuse()` and a `BREAD_REFUSE_*` reason
+  (`bread_refuse.h`), so GET_ACK's applied means the command was acted on.
+  On firmware without the flag every frame reports applied, including ones
+  the firmware ignored
 
 Baseline flag set:
 
 - `RLHT_CAP_BASELINE_FLAGS` (all currently supported RLHT control features;
-  does not include `RLHT_CAP_CMD_WATCHDOG`, `RLHT_CAP_CLEAR_WATCHDOG_TRIP` or
-  `RLHT_CAP_ESTOP_COUNT`)
+  does not include `RLHT_CAP_CMD_WATCHDOG`, `RLHT_CAP_CLEAR_WATCHDOG_TRIP`,
+  `RLHT_CAP_ESTOP_COUNT` or `RLHT_CAP_REFUSES`)
 
 ## Extension Policy
 

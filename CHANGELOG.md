@@ -4,6 +4,16 @@
 
 ### Added
 
+- The three SET field ranges the firmware enforces, as constants (#48):
+  `RLHT_OPEN_DUTY_MAX_PCT` (100) for SET_OPEN_DUTY, `RLHT_PERIOD_MIN_MS`
+  (100) and `RLHT_PERIOD_MAX_MS` (10000) for SET_PERIODS, and
+  `DCMT_PWM_MAX` (255) for SET_OPEN_LOOP, inclusive. Firmware advertising
+  `*_CAP_REFUSES` leaves a value outside its range unchanged and refuses
+  with `BREAD_REFUSE_UNDEFINED_VALUE`; older firmware clamps it, as
+  before. The Python codec mirrors them, and its encoders still check
+  only the wire type. Pinned in the compile smoke test and in
+  `vectors.json`. No opcode, payload or caps bit changes.
+
 - `bread_refuse.h`: the reason bytes a slice passes to `crumbs_refuse()`
   when it declines a SET, shared by both families and mirrored in the
   Python codec's `bread_refuse` module (#46). `0x01` malformed payload,

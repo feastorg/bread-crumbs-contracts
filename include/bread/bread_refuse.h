@@ -32,7 +32,9 @@
 #define BREAD_REFUSE_ESTOP 0x03
 
 /* A field holds a value the contract does not define, such as a DCMT
-   SET_PID loop other than POSITION or SPEED. */
+   SET_PID loop other than POSITION or SPEED, or a value outside the field's
+   stated range (RLHT_OPEN_DUTY_MAX_PCT, RLHT_PERIOD_MIN_MS/MAX_MS,
+   DCMT_PWM_MAX). */
 #define BREAD_REFUSE_UNDEFINED_VALUE 0x04
 
 /* A value the contract defines but this build leaves out, such as the DCMT

@@ -38,6 +38,7 @@ __all__ = [
     "RLHT_MODULE_VER_MAJOR",
     "RLHT_MODULE_VER_MINOR",
     "RLHT_MODULE_VER_PATCH",
+    "RLHT_OPEN_DUTY_MAX_PCT",
     "RLHT_OP_GET_STATE",
     "RLHT_OP_SET_MODE",
     "RLHT_OP_SET_OPEN_DUTY",
@@ -45,6 +46,8 @@ __all__ = [
     "RLHT_OP_SET_PID",
     "RLHT_OP_SET_SETPOINTS",
     "RLHT_OP_SET_TC_SELECT",
+    "RLHT_PERIOD_MAX_MS",
+    "RLHT_PERIOD_MIN_MS",
     "RLHT_STATE_FIXED_LEN",
     "RLHT_STATE_OFF_ESTOP_COUNT",
     "RLHT_TYPE_ID",
@@ -72,6 +75,14 @@ RLHT_MODULE_VER_PATCH = 0
 
 RLHT_MODE_CLOSED_LOOP = 0x00
 RLHT_MODE_OPEN_LOOP = 0x01
+
+#: Field ranges, inclusive. Firmware advertising ``RLHT_CAP_REFUSES`` leaves a
+#: value outside its range unchanged and refuses with
+#: ``BREAD_REFUSE_UNDEFINED_VALUE``; older firmware clamps it. The encoders
+#: check only the wire type, so a value outside these still encodes.
+RLHT_PERIOD_MIN_MS = 100
+RLHT_PERIOD_MAX_MS = 10000
+RLHT_OPEN_DUTY_MAX_PCT = 100
 
 RLHT_OP_SET_MODE = 0x01
 RLHT_OP_SET_SETPOINTS = 0x02

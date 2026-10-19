@@ -19,6 +19,13 @@ int bread_contracts_smoke(void)
     ok += (BREAD_REFUSE_WRONG_MODE == 0x06) ? 0 : 1;
     ok += (BREAD_REFUSE_UNKNOWN_OP == 0x07) ? 0 : 1;
 
+    /* Field ranges (#48): firmware refuses a value outside them, so they are
+       part of the contract. Each fits its field's wire type. */
+    ok += (RLHT_OPEN_DUTY_MAX_PCT == 100 && RLHT_OPEN_DUTY_MAX_PCT <= UINT8_MAX) ? 0 : 1;
+    ok += (RLHT_PERIOD_MIN_MS == 100 && RLHT_PERIOD_MAX_MS == 10000) ? 0 : 1;
+    ok += (RLHT_PERIOD_MIN_MS < RLHT_PERIOD_MAX_MS && RLHT_PERIOD_MAX_MS <= UINT16_MAX) ? 0 : 1;
+    ok += (DCMT_PWM_MAX == 255 && DCMT_PWM_MAX <= INT16_MAX) ? 0 : 1;
+
     ok += (bread_check_crumbs_compat((uint16_t)BREAD_MIN_CRUMBS_VERSION) == 0) ? 0 : 1;
     /* DCMT major 2: the SET_PID layout changed in 0.7.0. */
     ok += (DCMT_MODULE_VER_MAJOR == 2 && RLHT_MODULE_VER_MAJOR == 1) ? 0 : 1;

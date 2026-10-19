@@ -49,6 +49,10 @@ BREAD_CHECK_FAMILY_OPS(DCMT, DCMT_OPS)
 /* SET_OPEN_LOOP: [m1_pwm:i16][m2_pwm:i16] */
 #define DCMT_SET_OPEN_LOOP_FIELDS(X) X(i16, m1_pwm) X(i16, m2_pwm)
 CRUMBS_DEFINE_PAYLOAD(dcmt_set_open_loop, 4, DCMT_SET_OPEN_LOOP_FIELDS)
+/* An open-loop PWM is -DCMT_PWM_MAX to DCMT_PWM_MAX, inclusive. Firmware
+   advertising DCMT_CAP_REFUSES leaves a PWM outside it unchanged and refuses
+   with BREAD_REFUSE_UNDEFINED_VALUE; older firmware clamps it. */
+#define DCMT_PWM_MAX 255
 
 /* SET_BRAKE: [m1_brake:u8][m2_brake:u8] */
 #define DCMT_SET_BRAKE_FIELDS(X) X(u8, m1_brake) X(u8, m2_brake)

@@ -44,7 +44,10 @@ Levels:
 
 Flags:
 
-- bit 0: `DCMT_CAP_OPEN_LOOP_CONTROL`
+- bit 0: `DCMT_CAP_OPEN_LOOP_CONTROL` — `SET_OPEN_LOOP` takes a signed PWM
+  per motor, `-DCMT_PWM_MAX` to `DCMT_PWM_MAX` (255) inclusive. Firmware
+  advertising `DCMT_CAP_REFUSES` leaves a PWM outside that unchanged and
+  refuses with `BREAD_REFUSE_UNDEFINED_VALUE`; older firmware clamps it
 - bit 1: `DCMT_CAP_BRAKE_CONTROL`
 - bit 2: `DCMT_CAP_CLOSED_LOOP_POSITION`
 - bit 3: `DCMT_CAP_CLOSED_LOOP_SPEED`
@@ -97,9 +100,17 @@ Flags:
 - bit 0: `RLHT_CAP_MODE_CONTROL`
 - bit 1: `RLHT_CAP_SETPOINT_CONTROL`
 - bit 2: `RLHT_CAP_PID_TUNING`
-- bit 3: `RLHT_CAP_PERIOD_CONTROL`
+- bit 3: `RLHT_CAP_PERIOD_CONTROL` — `SET_PERIODS` takes a relay period
+  per heater, `RLHT_PERIOD_MIN_MS` (100) to `RLHT_PERIOD_MAX_MS` (10000) ms
+  inclusive. Firmware advertising `RLHT_CAP_REFUSES` leaves a period outside
+  that unchanged and refuses with `BREAD_REFUSE_UNDEFINED_VALUE`; older
+  firmware clamps it
 - bit 4: `RLHT_CAP_TC_SELECT`
-- bit 5: `RLHT_CAP_OPEN_DUTY_CONTROL`
+- bit 5: `RLHT_CAP_OPEN_DUTY_CONTROL` — `SET_OPEN_DUTY` takes a duty per
+  heater, 0 to `RLHT_OPEN_DUTY_MAX_PCT` (100) percent of the relay period
+  inclusive. Firmware advertising `RLHT_CAP_REFUSES` leaves a duty above that
+  unchanged and refuses with `BREAD_REFUSE_UNDEFINED_VALUE`; older firmware
+  clamps it
 - bit 6: `RLHT_CAP_CMD_WATCHDOG` — firmware supports the shared bus-liveness
   command watchdog (`BREAD_OP_SET_WATCHDOG` / `BREAD_OP_GET_WATCHDOG`);
   controllers must not send `BREAD_OP_SET_WATCHDOG` unless this flag is

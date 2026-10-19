@@ -67,6 +67,11 @@ CRUMBS_DEFINE_PAYLOAD(rlht_set_pid, 6, RLHT_SET_PID_FIELDS)
 /* SET_PERIODS: [p1_ms:u16][p2_ms:u16] */
 #define RLHT_SET_PERIODS_FIELDS(X) X(u16, p1_ms) X(u16, p2_ms)
 CRUMBS_DEFINE_PAYLOAD(rlht_set_periods, 4, RLHT_SET_PERIODS_FIELDS)
+/* A relay period is RLHT_PERIOD_MIN_MS to RLHT_PERIOD_MAX_MS, inclusive.
+   Firmware advertising RLHT_CAP_REFUSES leaves a period outside it unchanged
+   and refuses with BREAD_REFUSE_UNDEFINED_VALUE; older firmware clamps it. */
+#define RLHT_PERIOD_MIN_MS 100
+#define RLHT_PERIOD_MAX_MS 10000
 
 /* SET_TC_SELECT: [tc1:u8][tc2:u8] */
 #define RLHT_SET_TC_SELECT_FIELDS(X) X(u8, tc1) X(u8, tc2)
@@ -75,6 +80,10 @@ CRUMBS_DEFINE_PAYLOAD(rlht_set_tc_select, 2, RLHT_SET_TC_SELECT_FIELDS)
 /* SET_OPEN_DUTY: [duty1_pct:u8][duty2_pct:u8] */
 #define RLHT_SET_OPEN_DUTY_FIELDS(X) X(u8, duty1_pct) X(u8, duty2_pct)
 CRUMBS_DEFINE_PAYLOAD(rlht_set_open_duty, 2, RLHT_SET_OPEN_DUTY_FIELDS)
+/* An open-loop duty is 0 to RLHT_OPEN_DUTY_MAX_PCT percent, inclusive.
+   Firmware advertising RLHT_CAP_REFUSES leaves a duty above it unchanged and
+   refuses with BREAD_REFUSE_UNDEFINED_VALUE; older firmware clamps it. */
+#define RLHT_OPEN_DUTY_MAX_PCT 100
 
 /*
  * GET_STATE reply (19 bytes):

@@ -4,6 +4,7 @@
 #include <stdint.h>
 
 #include "bread_caps.h"
+#include "bread_refuse.h"
 #include "bread_watchdog.h"
 
 /*

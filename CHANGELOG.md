@@ -2,6 +2,18 @@
 
 ## [Unreleased]
 
+### Added
+
+- `bread_refuse.h`: the reason bytes a slice passes to `crumbs_refuse()`
+  when it declines a SET, shared by both families and mirrored in the
+  Python codec's `bread_refuse` module (#46). `0x01` malformed payload,
+  `0x02` watchdog trip held, `0x03` e-stop held, `0x04` undefined value,
+  `0x05` not built, `0x06` wrong mode, `0x07` unknown opcode. `0x00` is
+  never a refusal reason, and `0x80`-`0xFF` are left to the families.
+  `bread_common_ops.h` and `bread_ops.h` include it. The values are
+  pinned in the compile smoke test and in `vectors.json`, and nothing
+  else in the headers changes.
+
 ## [0.8.0] - 2026-10-18
 
 ### Changed

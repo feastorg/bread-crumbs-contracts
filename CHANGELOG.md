@@ -2,6 +2,8 @@
 
 ## [Unreleased]
 
+## [0.8.0] - 2026-10-18
+
 ### Changed
 
 - Requires CRUMBS 0.16.0: `library.json` `^0.16.0`, and

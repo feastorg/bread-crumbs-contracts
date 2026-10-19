@@ -128,10 +128,11 @@ CRUMBS_DEFINE_PAYLOAD(rlht_state, 19, RLHT_STATE_FIELDS)
 /* The GET_STATE reply carries estop_count after the 19-byte layout. Without
    it the reply is 19 bytes and rlht_state_result_t.estop_count reads 0. */
 #define RLHT_CAP_ESTOP_COUNT ((uint32_t)1u << 8)
-/* A SET the firmware does not act on is refused with crumbs_refuse() and a
-   BREAD_REFUSE_* reason (bread_refuse.h), so GET_ACK's applied means the
-   command was acted on. Without it every frame reports applied, including
-   ones the firmware ignored. */
+/* A SET the firmware does not act on in full is refused with
+   crumbs_refuse() and a BREAD_REFUSE_* reason (bread_refuse.h), so
+   GET_ACK's applied means every part was acted on as sent; a frame acted on
+   in part applies what it can and is refused (see bread_refuse.h). Without
+   it every frame reports applied, including ones the firmware ignored. */
 #define RLHT_CAP_REFUSES ((uint32_t)1u << 9)
 
 #define RLHT_CAP_BASELINE_FLAGS (RLHT_CAP_MODE_CONTROL | RLHT_CAP_SETPOINT_CONTROL | \

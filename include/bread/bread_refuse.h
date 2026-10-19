@@ -10,6 +10,14 @@
  * 0x00 is never a refusal reason: CRUMBS reports it for an applied
  * command. 0x80-0xFF are left to the families for reasons only they have.
  * A released value never changes meaning; new reasons take new values.
+ *
+ * Applied means every part of the frame was acted on as sent. A frame with
+ * parts the firmware can act on and parts it cannot, such as a DCMT
+ * SET_BRAKE that engages one brake and asks to release the other while a
+ * watchdog trip is held, applies the parts it can and is refused with the
+ * reason of the first ignored part in payload order. A refusal therefore
+ * does not mean nothing changed: the controller reads GET_STATE to see what
+ * took effect.
  */
 
 /* The payload does not decode, or its length is not the one the opcode

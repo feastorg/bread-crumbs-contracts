@@ -141,9 +141,11 @@ DCMT_CAP_CLEAR_WATCHDOG_TRIP = 1 << 6
 #: refused while e-stopped; a release moves nothing. Without this flag, a
 #: release resumes the stored mode and setpoints.
 DCMT_CAP_ESTOP_HOLD = 1 << 7
-#: A SET the firmware does not act on is refused with a ``BREAD_REFUSE_*``
-#: reason, so GET_ACK's applied means the command was acted on. Without this
-#: flag every frame reports applied, including ones the firmware ignored.
+#: A SET the firmware does not act on in full is refused with a
+#: ``BREAD_REFUSE_*`` reason, so GET_ACK's applied means every part was acted
+#: on as sent; a frame acted on in part applies what it can and is refused.
+#: Without this flag every frame reports applied, including ones the firmware
+#: ignored.
 DCMT_CAP_REFUSES = 1 << 8
 
 DCMT_CAP_BASELINE_FLAGS = DCMT_CAP_OPEN_LOOP_CONTROL | DCMT_CAP_BRAKE_CONTROL

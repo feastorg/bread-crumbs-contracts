@@ -119,6 +119,11 @@ families share:
 command, and `0x80`-`0xFF` are left to the families. A released value never
 changes meaning.
 
+Applied means every part of the frame was acted on as sent. A frame acted on
+in part applies what it can and is refused with the reason of its first
+ignored part in payload order, so after a refusal a controller reads
+GET_STATE to see what took effect.
+
 Firmware that refuses this way advertises `DCMT_CAP_REFUSES` or
 `RLHT_CAP_REFUSES`. Without the flag, the firmware never refuses and GET_ACK
 reports every frame applied, so "applied" proves only that the frame

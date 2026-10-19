@@ -13,8 +13,10 @@
   `bread_common_ops.h` and `bread_ops.h` include it. The values are
   pinned in the compile smoke test and in `vectors.json`.
 - `DCMT_CAP_REFUSES` (bit 8) and `RLHT_CAP_REFUSES` (bit 9): the firmware
-  refuses a SET it does not act on with a `BREAD_REFUSE_*` reason, so
-  GET_ACK's applied means the command was acted on. Firmware without the
+  refuses a SET it does not act on in full with a `BREAD_REFUSE_*`
+  reason, so GET_ACK's applied means every part was acted on as sent. A
+  frame acted on in part applies what it can and is refused with the
+  reason of its first ignored part in payload order. Firmware without the
   flag reports every frame applied, including ones it ignored. Neither
   flag is in its family's baseline set, and no other caps bit, opcode or
   payload changes.

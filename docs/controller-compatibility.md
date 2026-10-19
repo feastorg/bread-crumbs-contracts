@@ -125,6 +125,19 @@ with each:
 
 A reason from `0x80` up is the family's own; the family header defines it.
 
+Applied means every part of the frame was acted on as sent. Refused does
+not mean nothing changed. A frame the firmware can act on in part applies
+those parts and is refused with the reason of its first ignored part, in
+payload order:
+
+- DCMT SET_BRAKE while a watchdog trip is held engages any brake it names,
+  since an engage is always safe, and is refused with
+  `BREAD_REFUSE_WATCHDOG_TRIP` if it asked for a release.
+- RLHT SET_TC_SELECT with one channel other than 1 or 2 sets the other
+  channel and is refused with `BREAD_REFUSE_UNDEFINED_VALUE`.
+
+After any refusal, read GET_STATE to see what took effect before resending.
+
 Trust "applied" only when GET_CAPS advertises `DCMT_CAP_REFUSES` or
 `RLHT_CAP_REFUSES`. Firmware without the flag never refuses: it dispatches
 every frame through `on_message`, so GET_ACK reports each one applied,

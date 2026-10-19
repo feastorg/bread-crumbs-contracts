@@ -168,6 +168,12 @@ CRUMBS_STATIC_ASSERT(DCMT_STATE_FIXED_LEN == dcmt_state_wire_size,
    A release moves nothing; resume with SET_BRAKE(0,0), then setpoints, then
    the mode. Without it, a release resumes the stored mode and setpoints. */
 #define DCMT_CAP_ESTOP_HOLD ((uint32_t)1u << 7)
+/* A SET the firmware does not act on in full is refused with
+   crumbs_refuse() and a BREAD_REFUSE_* reason (bread_refuse.h), so
+   GET_ACK's applied means every part was acted on as sent; a frame acted on
+   in part applies what it can and is refused (see bread_refuse.h). Without
+   it every frame reports applied, including ones the firmware ignored. */
+#define DCMT_CAP_REFUSES ((uint32_t)1u << 8)
 
 #define DCMT_CAP_BASELINE_FLAGS (DCMT_CAP_OPEN_LOOP_CONTROL | DCMT_CAP_BRAKE_CONTROL)
 

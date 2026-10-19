@@ -98,12 +98,44 @@ count, so a controller sees a press it missed.
   controllers read the 20-byte reply as before. Without the flag the reply
   is 19 bytes and the parsed `estop_count` is 0.
 
+## Refuse Reasons
+
+A slice that declines a SET calls `crumbs_refuse(ctx, reason)`, and CRUMBS's
+GET_ACK reports the command as refused with that reason byte. CRUMBS leaves
+the byte's meaning to the family; `bread_refuse.h` defines the meanings both
+families share:
+
+| Reason | Name | Meaning |
+| --- | --- | --- |
+| `0x01` | `BREAD_REFUSE_MALFORMED` | the payload does not decode, or has the wrong length |
+| `0x02` | `BREAD_REFUSE_WATCHDOG_TRIP` | a watchdog trip is held |
+| `0x03` | `BREAD_REFUSE_ESTOP` | a hardware e-stop is held |
+| `0x04` | `BREAD_REFUSE_UNDEFINED_VALUE` | a field holds a value the contract does not define |
+| `0x05` | `BREAD_REFUSE_NOT_BUILT` | a defined value this build leaves out; GET_CAPS says what it supports |
+| `0x06` | `BREAD_REFUSE_WRONG_MODE` | the command does not apply in the current mode |
+| `0x07` | `BREAD_REFUSE_UNKNOWN_OP` | neither the family nor bread-common defines the opcode |
+
+`0x00` is never a refusal reason, since CRUMBS reports it for an applied
+command, and `0x80`-`0xFF` are left to the families. A released value never
+changes meaning.
+
+Applied means every part of the frame was acted on as sent. A frame acted on
+in part applies what it can and is refused with the reason of its first
+ignored part in payload order, so after a refusal a controller reads
+GET_STATE to see what took effect.
+
+Firmware that refuses this way advertises `DCMT_CAP_REFUSES` or
+`RLHT_CAP_REFUSES`. Without the flag, the firmware never refuses and GET_ACK
+reports every frame applied, so "applied" proves only that the frame
+arrived. See `docs/controller-compatibility.md`.
+
 ## Current Device Contracts
 
 - RLHT: `include/bread/rlht_ops.h`
 - DCMT: `include/bread/dcmt_ops.h`
 - Shared caps helpers: `include/bread/bread_caps.h`
 - Shared opcode list and family check: `include/bread/bread_common_ops.h`
+- Shared refuse reasons: `include/bread/bread_refuse.h`
 - Shared watchdog helpers: `include/bread/bread_watchdog.h`
 - Shared version helpers: `include/bread/bread_version_helpers.h`
 
@@ -246,6 +278,7 @@ are what CI runs.
 include/bread/
   bread_ops.h
   bread_caps.h
+  bread_refuse.h
   bread_version_helpers.h
   dcmt_ops.h
   rlht_ops.h

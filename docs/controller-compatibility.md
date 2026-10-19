@@ -106,6 +106,45 @@ to 0. DCMT major 2 always carries it. RLHT carries it when
 `RLHT_CAP_ESTOP_COUNT` is advertised; without the flag, ignore the parsed
 value.
 
+## Refused Commands
+
+CRUMBS 0.16.0's GET_ACK says whether the peripheral applied, refused or
+rejected the last command. A slice that declines a SET refuses it with one
+of the `BREAD_REFUSE_*` reasons in `bread_refuse.h`. What a controller does
+with each:
+
+- `BREAD_REFUSE_MALFORMED`, `BREAD_REFUSE_UNDEFINED_VALUE`,
+  `BREAD_REFUSE_UNKNOWN_OP`: the controller built a frame the contract does
+  not allow. Resending it will not help.
+- `BREAD_REFUSE_NOT_BUILT`: the command needs a feature this build leaves
+  out. Gate it on the capability flag that names the feature.
+- `BREAD_REFUSE_WATCHDOG_TRIP`, `BREAD_REFUSE_ESTOP`: the slice is holding
+  its safe state. Clear the trip, or wait for the e-stop release, before
+  resending.
+- `BREAD_REFUSE_WRONG_MODE`: set the mode the command needs first.
+
+A reason from `0x80` up is the family's own; the family header defines it.
+
+Applied means every part of the frame was acted on as sent. Refused does
+not mean nothing changed. A frame the firmware can act on in part applies
+those parts and is refused with the reason of its first ignored part, in
+payload order:
+
+- DCMT SET_BRAKE while a watchdog trip is held engages any brake it names,
+  since an engage is always safe, and is refused with
+  `BREAD_REFUSE_WATCHDOG_TRIP` if it asked for a release.
+- RLHT SET_TC_SELECT with one channel other than 1 or 2 sets the other
+  channel and is refused with `BREAD_REFUSE_UNDEFINED_VALUE`.
+
+After any refusal, read GET_STATE to see what took effect before resending.
+
+Trust "applied" only when GET_CAPS advertises `DCMT_CAP_REFUSES` or
+`RLHT_CAP_REFUSES`. Firmware without the flag never refuses: it dispatches
+every frame through `on_message`, so GET_ACK reports each one applied,
+including commands the firmware ignored. On such firmware, "applied" means
+only that the frame arrived, and a controller confirms the effect in
+GET_STATE.
+
 ## Error Handling Expectations
 
 Controllers should:

@@ -69,6 +69,16 @@ Flags:
   setpoints, then the mode. On firmware without the flag, a release
   resumes the stored mode and setpoints, including commands sent during
   the hold
+- bit 8: `DCMT_CAP_REFUSES` — a SET the firmware does not act on in full
+  is refused with `crumbs_refuse()` and a `BREAD_REFUSE_*` reason
+  (`bread_refuse.h`), so GET_ACK's applied means every part was acted on as
+  sent. A frame acted on in part applies what it can and is refused with
+  the reason of its first ignored part in payload order; a SET_BRAKE while
+  tripped engages any brake it names and is refused with
+  `BREAD_REFUSE_WATCHDOG_TRIP` if it asked for a release. After a refusal
+  the controller reads GET_STATE to see what took effect. On firmware
+  without the flag every frame reports applied, including ones the
+  firmware ignored
 
 Baseline flag set:
 
@@ -106,12 +116,21 @@ Flags:
   hardware e-stop presses since boot, wrapping at 255. On firmware without
   the flag the reply is 19 bytes and `rlht_parse_state_payload()` reports
   `estop_count` 0, which a controller must not read as a count
+- bit 9: `RLHT_CAP_REFUSES` — a SET the firmware does not act on in full
+  is refused with `crumbs_refuse()` and a `BREAD_REFUSE_*` reason
+  (`bread_refuse.h`), so GET_ACK's applied means every part was acted on as
+  sent. A frame acted on in part applies what it can and is refused with
+  the reason of its first ignored part in payload order; a SET_TC_SELECT
+  with one channel other than 1 or 2 sets the other channel and is refused
+  with `BREAD_REFUSE_UNDEFINED_VALUE`. After a refusal the controller reads
+  GET_STATE to see what took effect. On firmware without the flag every
+  frame reports applied, including ones the firmware ignored
 
 Baseline flag set:
 
 - `RLHT_CAP_BASELINE_FLAGS` (all currently supported RLHT control features;
-  does not include `RLHT_CAP_CMD_WATCHDOG`, `RLHT_CAP_CLEAR_WATCHDOG_TRIP` or
-  `RLHT_CAP_ESTOP_COUNT`)
+  does not include `RLHT_CAP_CMD_WATCHDOG`, `RLHT_CAP_CLEAR_WATCHDOG_TRIP`,
+  `RLHT_CAP_ESTOP_COUNT` or `RLHT_CAP_REFUSES`)
 
 ## Extension Policy
 

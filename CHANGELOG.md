@@ -2,6 +2,25 @@
 
 ## [Unreleased]
 
+### Added
+
+- `bread_refuse.h`: the reason bytes a slice passes to `crumbs_refuse()`
+  when it declines a SET, shared by both families and mirrored in the
+  Python codec's `bread_refuse` module (#46). `0x01` malformed payload,
+  `0x02` watchdog trip held, `0x03` e-stop held, `0x04` undefined value,
+  `0x05` not built, `0x06` wrong mode, `0x07` unknown opcode. `0x00` is
+  never a refusal reason, and `0x80`-`0xFF` are left to the families.
+  `bread_common_ops.h` and `bread_ops.h` include it. The values are
+  pinned in the compile smoke test and in `vectors.json`.
+- `DCMT_CAP_REFUSES` (bit 8) and `RLHT_CAP_REFUSES` (bit 9): the firmware
+  refuses a SET it does not act on in full with a `BREAD_REFUSE_*`
+  reason, so GET_ACK's applied means every part was acted on as sent. A
+  frame acted on in part applies what it can and is refused with the
+  reason of its first ignored part in payload order. Firmware without the
+  flag reports every frame applied, including ones it ignored. Neither
+  flag is in its family's baseline set, and no other caps bit, opcode or
+  payload changes.
+
 ## [0.8.0] - 2026-10-18
 
 ### Changed

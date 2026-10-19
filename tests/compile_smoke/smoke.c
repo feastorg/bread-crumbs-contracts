@@ -10,6 +10,15 @@ int bread_contracts_smoke(void)
     ok += (DCMT_CAP_BASELINE_FLAGS != 0u) ? 0 : 1;
     ok += (RLHT_CAP_BASELINE_FLAGS != 0u) ? 0 : 1;
 
+    /* Refuse reasons are wire values: once released they never move. */
+    ok += (BREAD_REFUSE_MALFORMED == 0x01) ? 0 : 1;
+    ok += (BREAD_REFUSE_WATCHDOG_TRIP == 0x02) ? 0 : 1;
+    ok += (BREAD_REFUSE_ESTOP == 0x03) ? 0 : 1;
+    ok += (BREAD_REFUSE_UNDEFINED_VALUE == 0x04) ? 0 : 1;
+    ok += (BREAD_REFUSE_NOT_BUILT == 0x05) ? 0 : 1;
+    ok += (BREAD_REFUSE_WRONG_MODE == 0x06) ? 0 : 1;
+    ok += (BREAD_REFUSE_UNKNOWN_OP == 0x07) ? 0 : 1;
+
     ok += (bread_check_crumbs_compat((uint16_t)BREAD_MIN_CRUMBS_VERSION) == 0) ? 0 : 1;
     /* DCMT major 2: the SET_PID layout changed in 0.7.0. */
     ok += (DCMT_MODULE_VER_MAJOR == 2 && RLHT_MODULE_VER_MAJOR == 1) ? 0 : 1;
@@ -77,6 +86,23 @@ int bread_contracts_smoke(void)
                  RLHT_CAP_PERIOD_CONTROL | RLHT_CAP_TC_SELECT | RLHT_CAP_OPEN_DUTY_CONTROL |
                  RLHT_CAP_CMD_WATCHDOG | RLHT_CAP_CLEAR_WATCHDOG_TRIP | RLHT_CAP_BASELINE_FLAGS)) == 0u &&
                RLHT_CAP_ESTOP_COUNT != 0u)
+                  ? 0
+                  : 1;
+        /* REFUSES: a cap bit per family that overlaps no other flag of its
+           family and is outside the baseline set. */
+        ok += ((DCMT_CAP_REFUSES &
+                (DCMT_CAP_OPEN_LOOP_CONTROL | DCMT_CAP_BRAKE_CONTROL | DCMT_CAP_CLOSED_LOOP_POSITION |
+                 DCMT_CAP_CLOSED_LOOP_SPEED | DCMT_CAP_PID_TUNING | DCMT_CAP_CMD_WATCHDOG |
+                 DCMT_CAP_CLEAR_WATCHDOG_TRIP | DCMT_CAP_ESTOP_HOLD | DCMT_CAP_BASELINE_FLAGS)) == 0u &&
+               DCMT_CAP_REFUSES != 0u)
+                  ? 0
+                  : 1;
+        ok += ((RLHT_CAP_REFUSES &
+                (RLHT_CAP_MODE_CONTROL | RLHT_CAP_SETPOINT_CONTROL | RLHT_CAP_PID_TUNING |
+                 RLHT_CAP_PERIOD_CONTROL | RLHT_CAP_TC_SELECT | RLHT_CAP_OPEN_DUTY_CONTROL |
+                 RLHT_CAP_CMD_WATCHDOG | RLHT_CAP_CLEAR_WATCHDOG_TRIP | RLHT_CAP_ESTOP_COUNT |
+                 RLHT_CAP_BASELINE_FLAGS)) == 0u &&
+               RLHT_CAP_REFUSES != 0u)
                   ? 0
                   : 1;
         ok += (bread_watchdog_build_reply(&wd_reply, DCMT_TYPE_ID, 1, 5000, 1, 3) == 0) ? 0 : 1;

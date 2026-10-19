@@ -43,6 +43,7 @@ __all__ = [
     "DCMT_OP_SET_SETPOINT",
     "DCMT_PID_LOOP_POSITION",
     "DCMT_PID_LOOP_SPEED",
+    "DCMT_PWM_MAX",
     "DCMT_SET_PID_PAYLOAD_LEN",
     "DCMT_STATE_FIXED_LEN",
     "DCMT_STATE_OFF_BRAKES",
@@ -121,6 +122,12 @@ DCMT_STATE_FIXED_LEN = 20
 DCMT_MODE_OPEN_LOOP = 0x00
 DCMT_MODE_CLOSED_POSITION = 0x01
 DCMT_MODE_CLOSED_SPEED = 0x02
+
+#: An open-loop PWM is ``-DCMT_PWM_MAX`` to ``DCMT_PWM_MAX``, inclusive.
+#: Firmware advertising ``DCMT_CAP_REFUSES`` leaves a PWM outside it unchanged
+#: and refuses with ``BREAD_REFUSE_UNDEFINED_VALUE``; older firmware clamps it.
+#: The encoder checks only the wire type, so a value outside it still encodes.
+DCMT_PWM_MAX = 255
 
 DCMT_CAP_LEVEL_1 = 0x01
 DCMT_CAP_LEVEL_2 = 0x02

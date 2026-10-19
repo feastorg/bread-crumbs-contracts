@@ -135,6 +135,15 @@ payload order:
   `BREAD_REFUSE_WATCHDOG_TRIP` if it asked for a release.
 - RLHT SET_TC_SELECT with one channel other than 1 or 2 sets the other
   channel and is refused with `BREAD_REFUSE_UNDEFINED_VALUE`.
+- A field outside its stated range is a value the contract does not
+  define, so it is left unchanged and the frame is refused with
+  `BREAD_REFUSE_UNDEFINED_VALUE`, while the in-range field beside it still
+  applies. The ranges are inclusive: RLHT SET_OPEN_DUTY 0 to
+  `RLHT_OPEN_DUTY_MAX_PCT` (100) percent, RLHT SET_PERIODS
+  `RLHT_PERIOD_MIN_MS` (100) to `RLHT_PERIOD_MAX_MS` (10000) ms, DCMT
+  SET_OPEN_LOOP `-DCMT_PWM_MAX` to `DCMT_PWM_MAX` (255). Firmware without
+  the REFUSES flag clamps such a value instead. Check the range before
+  sending; the codec's encoders check only the wire type.
 
 After any refusal, read GET_STATE to see what took effect before resending.
 

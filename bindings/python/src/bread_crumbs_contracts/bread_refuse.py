@@ -24,7 +24,8 @@ BREAD_REFUSE_WATCHDOG_TRIP = 0x02
 #: A hardware e-stop is held, and the command could start motion or heat.
 BREAD_REFUSE_ESTOP = 0x03
 
-#: A field holds a value the contract does not define.
+#: A field holds a value the contract does not define, including a value
+#: outside the field's stated range.
 BREAD_REFUSE_UNDEFINED_VALUE = 0x04
 
 #: A value the contract defines but this build leaves out; GET_CAPS says what

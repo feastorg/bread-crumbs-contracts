@@ -146,7 +146,7 @@ In your project `platformio.ini`:
 ```ini
 lib_deps =
   cameronbrooks11/CRUMBS @ ^0.16.0
-  cameronbrooks11/bread-crumbs-contracts @ ^0.8.0
+  cameronbrooks11/bread-crumbs-contracts @ ^0.9.0
 ```
 
 Controller source:

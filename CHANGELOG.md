@@ -2,6 +2,8 @@
 
 ## [Unreleased]
 
+## [0.9.0] - 2026-10-19
+
 ### Added
 
 - The three SET field ranges the firmware enforces, as constants (#48):

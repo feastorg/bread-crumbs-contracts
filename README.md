@@ -107,7 +107,7 @@ families share:
 
 | Reason | Name | Meaning |
 | --- | --- | --- |
-| `0x01` | `BREAD_REFUSE_MALFORMED` | the payload does not decode, or has the wrong length |
+| `0x01` | `BREAD_REFUSE_MALFORMED` | the payload does not decode: shorter than the opcode's wire size, or not the exact length DCMT SET_PID and CLEAR_WATCHDOG_TRIP fix; a longer payload for any other opcode is accepted |
 | `0x02` | `BREAD_REFUSE_WATCHDOG_TRIP` | a watchdog trip is held |
 | `0x03` | `BREAD_REFUSE_ESTOP` | a hardware e-stop is held |
 | `0x04` | `BREAD_REFUSE_UNDEFINED_VALUE` | a field holds a value the contract does not define |

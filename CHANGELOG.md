@@ -23,7 +23,10 @@
   `0x05` not built, `0x06` wrong mode, `0x07` unknown opcode. `0x00` is
   never a refusal reason, and `0x80`-`0xFF` are left to the families.
   `bread_common_ops.h` and `bread_ops.h` include it. The values are
-  pinned in the compile smoke test and in `vectors.json`.
+  pinned in the compile smoke test and in `vectors.json`. Malformed
+  means shorter than the opcode's wire size, or not the exact length of
+  DCMT SET_PID or CLEAR_WATCHDOG_TRIP; a longer payload for any other
+  opcode is accepted, since CRUMBS extends a layout with trailing bytes.
 - `DCMT_CAP_REFUSES` (bit 8) and `RLHT_CAP_REFUSES` (bit 9): the firmware
   refuses a SET it does not act on in full with a `BREAD_REFUSE_*`
   reason, so GET_ACK's applied means every part was acted on as sent. A

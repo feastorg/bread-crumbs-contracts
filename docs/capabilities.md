@@ -65,20 +65,25 @@ Flags:
   firmware without it, `BREAD_OP_SET_WATCHDOG` clears the trip
 - bit 7: `DCMT_CAP_ESTOP_HOLD` — a hardware e-stop holds the way a latched
   watchdog trip does. On a press the firmware sets both brake flags and
-  moves the position setpoints to the encoders, re-syncing them while the
-  e-stop is held. While e-stopped it refuses `SET_OPEN_LOOP`,
-  `SET_SETPOINT`, `SET_MODE` and any brake release. Releasing the e-stop
-  moves nothing; the controller resumes with `SET_BRAKE(0,0)`, then
-  setpoints, then the mode. On firmware without the flag, a release
-  resumes the stored mode and setpoints, including commands sent during
-  the hold
+  moves the position setpoints to the encoders. While e-stopped it refuses
+  `SET_OPEN_LOOP`, `SET_SETPOINT`, `SET_MODE` and any brake release with
+  `BREAD_REFUSE_ESTOP`. Each motor's position setpoint keeps following its
+  encoder until that motor's brake is released or a new setpoint for it
+  arrives, through the e-stop release and after a watchdog trip is
+  cleared, so the brake release holds where the shaft is; a setpoint the
+  controller sends stands as sent. Releasing the e-stop moves nothing; the
+  controller resumes with `SET_BRAKE(0,0)`, then setpoints, then the mode.
+  Advertised only together with `DCMT_CAP_REFUSES`. On firmware without
+  the flag, a release resumes the stored mode and setpoints, including
+  commands sent during the hold
 - bit 8: `DCMT_CAP_REFUSES` — a SET the firmware does not act on in full
   is refused with `crumbs_refuse()` and a `BREAD_REFUSE_*` reason
   (`bread_refuse.h`), so GET_ACK's applied means every part was acted on as
   sent. A frame acted on in part applies what it can and is refused with
   the reason of its first ignored part in payload order; a SET_BRAKE while
-  tripped engages any brake it names and is refused with
-  `BREAD_REFUSE_WATCHDOG_TRIP` if it asked for a release. After a refusal
+  a hold is in force engages any brake it names and is refused with the
+  hold's reason (`BREAD_REFUSE_WATCHDOG_TRIP`, or `BREAD_REFUSE_ESTOP` on
+  firmware with `DCMT_CAP_ESTOP_HOLD`) if it asked for a release. After a refusal
   the controller reads GET_STATE to see what took effect. On firmware
   without the flag every frame reports applied, including ones the
   firmware ignored
@@ -136,12 +141,20 @@ Flags:
   with `BREAD_REFUSE_UNDEFINED_VALUE`. After a refusal the controller reads
   GET_STATE to see what took effect. On firmware without the flag every
   frame reports applied, including ones the firmware ignored
+- bit 10: `RLHT_CAP_ESTOP_HOLD` — a hardware e-stop holds the way a latched
+  watchdog trip does. On a press the firmware sets both setpoints and both
+  open-loop on-times to 0 and turns the relays off. While e-stopped it
+  refuses `SET_MODE`, `SET_SETPOINTS` and `SET_OPEN_DUTY` with
+  `BREAD_REFUSE_ESTOP`. Releasing the e-stop heats nothing; the controller
+  resumes with setpoints or duties. Advertised only together with
+  `RLHT_CAP_REFUSES`. On firmware without the flag, commands sent during
+  the hold are stored and heat at the release
 
 Baseline flag set:
 
 - `RLHT_CAP_BASELINE_FLAGS` (all currently supported RLHT control features;
   does not include `RLHT_CAP_CMD_WATCHDOG`, `RLHT_CAP_CLEAR_WATCHDOG_TRIP`,
-  `RLHT_CAP_ESTOP_COUNT` or `RLHT_CAP_REFUSES`)
+  `RLHT_CAP_ESTOP_COUNT`, `RLHT_CAP_REFUSES` or `RLHT_CAP_ESTOP_HOLD`)
 
 ## Extension Policy
 
@@ -157,9 +170,19 @@ Capability evolution is additive-only:
 - preserve semantics of existing flags/opcodes,
 - append payload fields only through a new schema version.
 
-One exception: firmware that advertises `DCMT_CAP_CLEAR_WATCHDOG_TRIP` /
-`RLHT_CAP_CLEAR_WATCHDOG_TRIP` changes what `BREAD_OP_SET_WATCHDOG` does,
-because it no longer clears a watchdog trip. A controller that predates the
-flag has no remote way to clear a trip on that firmware, so the controller
-release that understands the flag must ship with or before such firmware
-(see `controller-compatibility.md`).
+Two exceptions change what a controller that predates the flag sees, so
+the controller release that understands the flag must ship with or before
+such firmware (see `controller-compatibility.md`):
+
+- Firmware that advertises `DCMT_CAP_CLEAR_WATCHDOG_TRIP` /
+  `RLHT_CAP_CLEAR_WATCHDOG_TRIP` changes what `BREAD_OP_SET_WATCHDOG` does,
+  because it no longer clears a watchdog trip. A controller that predates
+  the flag has no remote way to clear a trip on that firmware.
+- Firmware that advertises `DCMT_CAP_ESTOP_HOLD` / `RLHT_CAP_ESTOP_HOLD`
+  refuses, while the e-stop is held, commands it used to store and run at
+  the release, and a DCMT stays braked after the release until
+  `SET_BRAKE(0,0)`. On DCMT the position setpoints also keep following the
+  encoders after a watchdog trip is cleared, until each brake is released
+  or a new setpoint arrives, where they used to stop following at the
+  clear. All three fail safe, but a controller that predates the flag does
+  not expect them.

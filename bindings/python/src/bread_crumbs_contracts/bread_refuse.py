@@ -15,13 +15,18 @@ __all__ = [
     "BREAD_REFUSE_WRONG_MODE",
 ]
 
-#: The payload does not decode, or its length is not the one the opcode takes.
+#: The payload does not decode: shorter than the opcode's wire size, or, for
+#: an opcode the contract fixes at an exact length (DCMT SET_PID,
+#: CLEAR_WATCHDOG_TRIP), any other length. A longer payload for any other
+#: opcode is not malformed.
 BREAD_REFUSE_MALFORMED = 0x01
 
 #: A command-watchdog trip is held, and the command could start motion or heat.
 BREAD_REFUSE_WATCHDOG_TRIP = 0x02
 
-#: A hardware e-stop is held, and the command could start motion or heat.
+#: A hardware e-stop is held, and the command could start motion or heat. On
+#: firmware that advertises ``*_CAP_ESTOP_HOLD``, this is the reason when an
+#: e-stop and a watchdog trip are both held.
 BREAD_REFUSE_ESTOP = 0x03
 
 #: A field holds a value the contract does not define, including a value

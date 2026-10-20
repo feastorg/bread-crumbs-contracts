@@ -68,10 +68,12 @@ Flags:
   moves the position setpoints to the encoders. While e-stopped it refuses
   `SET_OPEN_LOOP`, `SET_SETPOINT`, `SET_MODE` and any brake release with
   `BREAD_REFUSE_ESTOP`. Each motor's position setpoint keeps following its
-  encoder until that motor's brake is released, through the e-stop release
-  and after a watchdog trip is cleared, so the brake release holds where
-  the shaft is. Releasing the e-stop moves nothing; the controller resumes
-  with `SET_BRAKE(0,0)`, then setpoints, then the mode. On firmware without
+  encoder until that motor's brake is released or a new setpoint for it
+  arrives, through the e-stop release and after a watchdog trip is
+  cleared, so the brake release holds where the shaft is; a setpoint the
+  controller sends stands as sent. Releasing the e-stop moves nothing; the
+  controller resumes with `SET_BRAKE(0,0)`, then setpoints, then the mode.
+  Advertised only together with `DCMT_CAP_REFUSES`. On firmware without
   the flag, a release resumes the stored mode and setpoints, including
   commands sent during the hold
 - bit 8: `DCMT_CAP_REFUSES` — a SET the firmware does not act on in full
@@ -79,8 +81,9 @@ Flags:
   (`bread_refuse.h`), so GET_ACK's applied means every part was acted on as
   sent. A frame acted on in part applies what it can and is refused with
   the reason of its first ignored part in payload order; a SET_BRAKE while
-  tripped engages any brake it names and is refused with
-  `BREAD_REFUSE_WATCHDOG_TRIP` if it asked for a release. After a refusal
+  a hold is in force engages any brake it names and is refused with the
+  hold's reason (`BREAD_REFUSE_WATCHDOG_TRIP`, or `BREAD_REFUSE_ESTOP` on
+  firmware with `DCMT_CAP_ESTOP_HOLD`) if it asked for a release. After a refusal
   the controller reads GET_STATE to see what took effect. On firmware
   without the flag every frame reports applied, including ones the
   firmware ignored
@@ -143,8 +146,9 @@ Flags:
   open-loop on-times to 0 and turns the relays off. While e-stopped it
   refuses `SET_MODE`, `SET_SETPOINTS` and `SET_OPEN_DUTY` with
   `BREAD_REFUSE_ESTOP`. Releasing the e-stop heats nothing; the controller
-  resumes with setpoints or duties. On firmware without the flag, commands
-  sent during the hold are stored and heat at the release
+  resumes with setpoints or duties. Advertised only together with
+  `RLHT_CAP_REFUSES`. On firmware without the flag, commands sent during
+  the hold are stored and heat at the release
 
 Baseline flag set:
 
@@ -177,5 +181,8 @@ such firmware (see `controller-compatibility.md`):
 - Firmware that advertises `DCMT_CAP_ESTOP_HOLD` / `RLHT_CAP_ESTOP_HOLD`
   refuses, while the e-stop is held, commands it used to store and run at
   the release, and a DCMT stays braked after the release until
-  `SET_BRAKE(0,0)`. Both fail safe, but a controller that predates the flag
-  does not expect either.
+  `SET_BRAKE(0,0)`. On DCMT the position setpoints also keep following the
+  encoders after a watchdog trip is cleared, until each brake is released
+  or a new setpoint arrives, where they used to stop following at the
+  clear. All three fail safe, but a controller that predates the flag does
+  not expect them.

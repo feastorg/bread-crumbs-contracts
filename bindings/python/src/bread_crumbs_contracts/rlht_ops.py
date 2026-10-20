@@ -124,9 +124,9 @@ RLHT_CAP_ESTOP_COUNT = 1 << 8
 RLHT_CAP_REFUSES = 1 << 9
 #: A hardware e-stop holds like a latched watchdog trip: setpoints and
 #: open-loop on-times at 0, relays off, and SET_MODE, SET_SETPOINTS and
-#: SET_OPEN_DUTY refused while e-stopped; a release heats nothing. Without
-#: this flag, commands sent during the hold are stored and heat at the
-#: release.
+#: SET_OPEN_DUTY refused while e-stopped; a release heats nothing.
+#: Advertised only together with ``RLHT_CAP_REFUSES``. Without this flag,
+#: commands sent during the hold are stored and heat at the release.
 RLHT_CAP_ESTOP_HOLD = 1 << 10
 
 RLHT_CAP_BASELINE_FLAGS = (

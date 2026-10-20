@@ -8,8 +8,9 @@
   latched watchdog trip does. Setpoints and open-loop on-times go to 0 and
   the relays off, as the press already does, and while e-stopped the
   firmware refuses `SET_MODE`, `SET_SETPOINTS` and `SET_OPEN_DUTY` with
-  `BREAD_REFUSE_ESTOP`, so a release heats nothing. Without the flag,
-  commands sent during the hold are stored and heat at the release. The
+  `BREAD_REFUSE_ESTOP`, so a release heats nothing. Advertised only
+  together with `RLHT_CAP_REFUSES`. Without the flag, current firmware
+  stores commands sent during the hold and they heat at the release. The
   Python codec mirrors it; pinned in the compile smoke test and in
   `vectors.json`. Not in the baseline set; no other caps bit, opcode or
   payload changes.
@@ -18,25 +19,33 @@
   with nothing moving or heating until the controller sends new commands.
   Under a power cut the slice reboots into its boot state and the logic
   must lose power too, and the controller must not replay commands from
-  before the reboot without an operator's go-ahead.
+  before the reboot without an operator's go-ahead; `GET_WATCHDOG` back in
+  its boot state is the dependable sign of a reboot. The watchdog section
+  now gives the resume order after a clear.
 
 ### Changed
 
 - `DCMT_CAP_ESTOP_HOLD`, which no firmware advertises yet: each motor's
   position setpoint keeps following its encoder until that motor's brake
-  is released, through the e-stop release and after a watchdog trip is
-  cleared, so the brake release holds where the shaft is instead of
-  driving back by the distance it crept. A setpoint sent before
-  `SET_BRAKE(0,0)` is overwritten, as the documented resume order already
-  implies. The refusals name `BREAD_REFUSE_ESTOP`.
-- `bread_refuse.h`: with an e-stop and a watchdog trip both held, the
-  refusal reason is `BREAD_REFUSE_ESTOP`, since clearing the trip does not
-  lift the e-stop hold. `controller-compatibility.md` says so, and that a
-  command asking only for the safe value is refused during a hold too.
+  is released or a new setpoint for it arrives, through the e-stop
+  release and after a watchdog trip is cleared, so a brake release with no
+  new setpoint holds where the shaft is instead of driving back by the
+  distance it crept. A setpoint the controller sends ends the follow and
+  stands as sent. The refusals name `BREAD_REFUSE_ESTOP`, and the flag is
+  advertised only together with `DCMT_CAP_REFUSES`.
+- `bread_refuse.h`: on firmware with `*_CAP_ESTOP_HOLD`, with an e-stop
+  and a watchdog trip both held, the refusal reason is
+  `BREAD_REFUSE_ESTOP`, since clearing the trip does not lift the e-stop
+  hold. `controller-compatibility.md` says so, and that a command asking
+  only for the safe value is refused during a hold too. The partial
+  SET_BRAKE examples name the hold's reason instead of the trip's alone.
+- `bread_refuse.py`: the `BREAD_REFUSE_MALFORMED` comment now matches the
+  header's wire-size definition from 0.9.0 (#52).
 - `capabilities.md`: the exception to additive-only flags now covers both
-  `*_CAP_ESTOP_HOLD` flags beside the `*_CAP_CLEAR_WATCHDOG_TRIP` pair. Ship
-  the controller release that understands them with or before firmware
-  that advertises them.
+  `*_CAP_ESTOP_HOLD` flags beside the `*_CAP_CLEAR_WATCHDOG_TRIP` pair,
+  including DCMT's follow after a cleared trip. Ship the controller
+  release that understands them with or before firmware that advertises
+  them.
 
 ## [0.9.1] - 2026-10-19
 

@@ -170,10 +170,12 @@ CRUMBS_STATIC_ASSERT(DCMT_STATE_FIXED_LEN == dcmt_state_wire_size,
    encoders, and while e-stopped it refuses SET_OPEN_LOOP, SET_SETPOINT,
    SET_MODE and any brake release with BREAD_REFUSE_ESTOP. Each motor's
    position setpoint keeps following its encoder until that motor's brake is
-   released, through the release and after a watchdog trip is cleared, so
-   the brake release holds where the shaft is. A release moves nothing;
-   resume with SET_BRAKE(0,0), then setpoints, then the mode. Without it, a
-   release resumes the stored mode and setpoints. */
+   released or a new setpoint for it arrives, through the release and after
+   a watchdog trip is cleared, so the brake release holds where the shaft
+   is; a setpoint the controller sends stands as sent. A release moves
+   nothing; resume with SET_BRAKE(0,0), then setpoints, then the mode.
+   Advertised only together with DCMT_CAP_REFUSES. Without it, a release
+   resumes the stored mode and setpoints. */
 #define DCMT_CAP_ESTOP_HOLD ((uint32_t)1u << 7)
 /* A SET the firmware does not act on in full is refused with
    crumbs_refuse() and a BREAD_REFUSE_* reason (bread_refuse.h), so

@@ -82,6 +82,12 @@ advertises it.
 Firmware rejects a `BREAD_OP_CLEAR_WATCHDOG_TRIP` frame with a non-empty
 payload and leaves the trip set.
 
+Clearing a trip resumes nothing. To resume on DCMT, send `SET_BRAKE(0,0)`,
+then setpoints, then the mode; on RLHT, send setpoints or duties. On DCMT
+firmware with `DCMT_CAP_ESTOP_HOLD`, each position setpoint keeps following
+its encoder after the clear until that motor's brake is released or a new
+setpoint for it arrives, as after an e-stop release.
+
 ## DCMT E-stop Hold
 
 On DCMT firmware that advertises `DCMT_CAP_ESTOP_HOLD`, a hardware e-stop
@@ -91,10 +97,11 @@ encoders. Motion commands and brake releases sent while `estop` is set
 are refused with `BREAD_REFUSE_ESTOP`. After the release nothing moves
 until the controller sends `SET_BRAKE(0,0)`, then setpoints, then the
 mode, the same sequence that resumes after a watchdog trip is cleared.
-Until each brake is released, that motor's position setpoint keeps
-following its encoder, so the brake release holds where the shaft is; a
-setpoint sent before `SET_BRAKE(0,0)` is overwritten, so send setpoints
-after it.
+Until each brake is released or a new setpoint for that motor arrives, its
+position setpoint keeps following its encoder, so a brake release with no
+new setpoint holds where the shaft is. A setpoint sent before
+`SET_BRAKE(0,0)` ends the follow and stands as sent, so the brake release
+drives to it.
 
 On firmware without the flag, releasing the e-stop resumes the stored
 mode and setpoints, and commands sent during the hold take effect at the
@@ -110,9 +117,11 @@ open-loop on-times at 0 and the relays off. `SET_MODE`, `SET_SETPOINTS` and
 `BREAD_REFUSE_ESTOP`. After the release nothing heats until the controller
 sends setpoints or duties.
 
-On firmware without the flag, the press zeroes the same fields, but
+On current firmware without the flag, the press zeroes the same fields, but
 setpoints, duties and modes sent during the hold are stored and take
-effect at the release.
+effect at the release. Older RLHT firmware may also carry its PID state
+across the hold, so heating can resume from where it was once a setpoint
+returns.
 
 ## E-stop Wiring
 
@@ -122,9 +131,10 @@ sends new commands.
 
 - **Signal line.** The e-stop pulls the slice's e-stop input low. The
   firmware holds as above, `estop` reads 1 in GET_STATE and `estop_count`
-  advances. Some slice hardware also cuts actuator power from the same
-  line; on hardware without that cut, the firmware hold is the only stop.
-  Each slice's documentation says which its boards have.
+  advances (on RLHT, with `RLHT_CAP_ESTOP_COUNT`). Some slice hardware may
+  also cut actuator power from the same line; on hardware without that
+  cut, the firmware hold is the only stop. Check the slice's documentation
+  or schematic before relying on a hardware cut.
 - **Power cut.** The e-stop removes the supply. The slice reboots into its
   boot state, which moves and heats nothing: DCMT in open loop at PWM 0,
   RLHT at setpoints 0. The firmware sees no press. A slice whose logic stays
@@ -132,10 +142,14 @@ sends new commands.
   stored commands when actuator power returns, so power the logic from the
   switched supply.
 
-A controller sees a power-cut stop only as a reboot: `estop_count` back at
-0, the command watchdog back in its boot state, and the version reply
-answering again after a gap. It must not replay commands it sent before
-the reboot without an operator's go-ahead.
+A controller sees a power-cut stop only as a reboot. The most dependable
+sign, for a controller that armed the command watchdog, is
+`BREAD_OP_GET_WATCHDOG` back in its boot state: disarmed, unless the
+firmware is built with `*_WATCHDOG_BOOT_MS`. `estop_count` also restarts
+from 0, or from 1 if a signal-wired line is still held at power-up, and
+the slice stops answering for the length of the cut. The controller must
+not replay commands it sent before the reboot without an operator's
+go-ahead.
 
 ## E-stop Count
 
@@ -160,8 +174,10 @@ with each:
   out. Gate it on the capability flag that names the feature.
 - `BREAD_REFUSE_WATCHDOG_TRIP`, `BREAD_REFUSE_ESTOP`: the slice is holding
   its safe state. Clear the trip, or wait for the e-stop release, before
-  resending. With both held the reason is `BREAD_REFUSE_ESTOP`, since
-  clearing the trip does not lift the e-stop hold. A command that only asks
+  resending. On firmware with `*_CAP_ESTOP_HOLD`, with both held the
+  reason is `BREAD_REFUSE_ESTOP`, since clearing the trip does not lift the
+  e-stop hold; firmware without the flag never refuses with
+  `BREAD_REFUSE_ESTOP`. A command that only asks
   for the safe value, such as `SET_OPEN_LOOP(0,0)` or `SET_SETPOINTS` 0/0,
   is refused the same way: the slice is already at least that safe, so do
   not retry it.
@@ -174,9 +190,10 @@ not mean nothing changed. A frame the firmware can act on in part applies
 those parts and is refused with the reason of its first ignored part, in
 payload order:
 
-- DCMT SET_BRAKE while a watchdog trip is held engages any brake it names,
-  since an engage is always safe, and is refused with
-  `BREAD_REFUSE_WATCHDOG_TRIP` if it asked for a release.
+- DCMT SET_BRAKE while a hold is in force engages any brake it names,
+  since an engage is always safe, and is refused with the hold's reason
+  (`BREAD_REFUSE_WATCHDOG_TRIP`, or `BREAD_REFUSE_ESTOP` on firmware with
+  `DCMT_CAP_ESTOP_HOLD`) if it asked for a release.
 - RLHT SET_TC_SELECT with one channel other than 1 or 2 sets the other
   channel and is refused with `BREAD_REFUSE_UNDEFINED_VALUE`.
 - A field outside its stated range is a value the contract does not

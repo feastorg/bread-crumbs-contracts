@@ -143,6 +143,13 @@ CRUMBS_DEFINE_PAYLOAD(rlht_state, 19, RLHT_STATE_FIELDS)
    in part applies what it can and is refused (see bread_refuse.h). Without
    it every frame reports applied, including ones the firmware ignored. */
 #define RLHT_CAP_REFUSES ((uint32_t)1u << 9)
+/* A hardware e-stop holds like a latched watchdog trip: on a press the
+   firmware sets both setpoints and both open-loop on-times to 0 and turns
+   the relays off, and while e-stopped it refuses SET_MODE, SET_SETPOINTS and
+   SET_OPEN_DUTY with BREAD_REFUSE_ESTOP. A release heats nothing; resume
+   with setpoints or duties. Without it, commands sent during the hold are
+   stored and heat at the release. */
+#define RLHT_CAP_ESTOP_HOLD ((uint32_t)1u << 10)
 
 #define RLHT_CAP_BASELINE_FLAGS (RLHT_CAP_MODE_CONTROL | RLHT_CAP_SETPOINT_CONTROL | \
                                  RLHT_CAP_PID_TUNING | RLHT_CAP_PERIOD_CONTROL | \

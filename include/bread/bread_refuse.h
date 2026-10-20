@@ -32,7 +32,9 @@
    heat. */
 #define BREAD_REFUSE_WATCHDOG_TRIP 0x02
 
-/* A hardware e-stop is held, and the command could start motion or heat. */
+/* A hardware e-stop is held, and the command could start motion or heat.
+   When an e-stop and a watchdog trip are both held, this is the reason:
+   clearing the trip does not lift the e-stop hold. */
 #define BREAD_REFUSE_ESTOP 0x03
 
 /* A field holds a value the contract does not define, such as a DCMT

@@ -2,6 +2,8 @@
 
 ## [Unreleased]
 
+## [0.10.0] - 2026-10-20
+
 ### Added
 
 - `RLHT_CAP_ESTOP_HOLD` (bit 10): a hardware e-stop holds the way a

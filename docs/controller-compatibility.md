@@ -169,7 +169,14 @@ with each:
 
 - `BREAD_REFUSE_MALFORMED`, `BREAD_REFUSE_UNDEFINED_VALUE`,
   `BREAD_REFUSE_UNKNOWN_OP`: the controller built a frame the contract does
-  not allow. Resending it will not help.
+  not allow. Resending it will not help. A GET opcode is a query: read it
+  through SET_REPLY. Sent as a command frame, it is refused with
+  `BREAD_REFUSE_UNKNOWN_OP`.
+
+A slice that declares its family's `type_id` to CRUMBS rejects a command
+frame of another type before acting on it, and GET_ACK reports it rejected
+(`CRUMBS_ACK_REJECT_TYPE`), not refused. Send commands with the family's
+`type_id`, as the builders here do, or `0x00`.
 - `BREAD_REFUSE_NOT_BUILT`: the command needs a feature this build leaves
   out. Gate it on the capability flag that names the feature.
 - `BREAD_REFUSE_WATCHDOG_TRIP`, `BREAD_REFUSE_ESTOP`: the slice is holding

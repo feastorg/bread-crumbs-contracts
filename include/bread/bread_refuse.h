@@ -53,8 +53,10 @@
    duty outside open loop. */
 #define BREAD_REFUSE_WRONG_MODE 0x06
 
-/* An opcode that neither the family nor bread-common defines. CRUMBS
-   rejects such a frame itself only when no on_message callback takes it. */
+/* An opcode that is not a command of the family or of bread-common. That
+   includes a GET opcode sent as a command frame: a GET is a query, read
+   through SET_REPLY. CRUMBS rejects such a frame itself only when no
+   on_message callback takes it. */
 #define BREAD_REFUSE_UNKNOWN_OP 0x07
 
 #endif /* BREAD_REFUSE_H */

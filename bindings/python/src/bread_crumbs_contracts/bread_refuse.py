@@ -40,5 +40,6 @@ BREAD_REFUSE_NOT_BUILT = 0x05
 #: The command does not apply in the current mode.
 BREAD_REFUSE_WRONG_MODE = 0x06
 
-#: An opcode that neither the family nor bread-common defines.
+#: An opcode that is not a command of the family or of bread-common,
+#: including a GET opcode sent as a command frame instead of through SET_REPLY.
 BREAD_REFUSE_UNKNOWN_OP = 0x07

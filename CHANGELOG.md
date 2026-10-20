@@ -2,6 +2,16 @@
 
 ## [Unreleased]
 
+### Changed
+
+- `BREAD_REFUSE_UNKNOWN_OP` is worded as "not a family or bread-common
+  command", in `bread_refuse.h`, the Python codec and the README: a GET
+  opcode sent as a command frame, instead of through SET_REPLY, is refused
+  with it. Its value is unchanged. `controller-compatibility.md` says so,
+  and that a slice
+  declaring its `type_id` rejects a command of another type with
+  `CRUMBS_ACK_REJECT_TYPE`.
+
 ## [0.10.0] - 2026-10-20
 
 ### Added

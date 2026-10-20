@@ -117,7 +117,7 @@ families share:
 | `0x04` | `BREAD_REFUSE_UNDEFINED_VALUE` | a field holds a value the contract does not define |
 | `0x05` | `BREAD_REFUSE_NOT_BUILT` | a defined value this build leaves out; GET_CAPS says what it supports |
 | `0x06` | `BREAD_REFUSE_WRONG_MODE` | the command does not apply in the current mode |
-| `0x07` | `BREAD_REFUSE_UNKNOWN_OP` | neither the family nor bread-common defines the opcode |
+| `0x07` | `BREAD_REFUSE_UNKNOWN_OP` | the opcode is not a family or bread-common command; a GET opcode sent as a command frame, instead of through SET_REPLY, is refused this way |
 
 `0x00` is never a refusal reason, since CRUMBS reports it for an applied
 command, and `0x80`-`0xFF` are left to the families. A released value never

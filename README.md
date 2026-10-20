@@ -1,5 +1,9 @@
 # bread-crumbs-contracts
 
+[![CI](https://github.com/feastorg/bread-crumbs-contracts/actions/workflows/ci.yml/badge.svg)](https://github.com/feastorg/bread-crumbs-contracts/actions/workflows/ci.yml)
+[![PlatformIO Registry](https://badges.registry.platformio.org/packages/cameronbrooks11/library/bread-crumbs-contracts.svg)](https://registry.platformio.org/libraries/cameronbrooks11/bread-crumbs-contracts)
+[![PyPI](https://img.shields.io/pypi/v/bread-crumbs-contracts)](https://pypi.org/project/bread-crumbs-contracts/)
+
 Header-only CRUMBS operation contracts for BREADS-compatible Slices.
 
 This repository is the single source of truth for BREAD wire contracts used by:

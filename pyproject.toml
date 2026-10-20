@@ -4,7 +4,7 @@ version = "0.9.0"
 description = "Pure-Python codec for the BREAD CRUMBS operation contracts (RLHT, DCMT, caps, watchdog, version)"
 readme = "README.md"
 requires-python = ">=3.11"
-license = "AGPL-3.0-or-later"
+license = "MPL-2.0"
 license-files = ["LICENSE"]
 authors = [{ name = "Cameron K. Brooks" }]
 maintainers = [{ name = "Cameron K. Brooks", email = "cambrooks3393@gmail.com" }]

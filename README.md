@@ -310,3 +310,7 @@ tests/golden_vectors/
   gen_vectors.c
   vectors.json
 ```
+
+## License
+
+MPL-2.0 — see [LICENSE](LICENSE).

@@ -27,5 +27,13 @@
       "name": "cameronbrooks11/CRUMBS",
       "version": "^0.16.0"
     }
-  ]
+  ],
+  "export": {
+    "include": [
+      "include",
+      "README.md",
+      "CHANGELOG.md",
+      "LICENSE"
+    ]
+  }
 }

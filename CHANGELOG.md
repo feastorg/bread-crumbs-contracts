@@ -2,6 +2,8 @@
 
 ## [Unreleased]
 
+## [0.9.1] - 2026-10-19
+
 ### Changed
 
 - Relicensed from AGPL-3.0-or-later to MPL-2.0 (`LICENSE`, `library.json`, `pyproject.toml`), together with CRUMBS and linux-wire (feastorg/linux-wire#8). A controller or firmware that compiles against these headers can carry any licence; changes to the headers themselves stay open. Versions released before this change remain under AGPL-3.0-or-later.

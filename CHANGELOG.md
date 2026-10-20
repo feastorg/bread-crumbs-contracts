@@ -25,6 +25,10 @@
 
 ### Changed
 
+- The PlatformIO package carries only `include/`, `README.md`,
+  `CHANGELOG.md` and `LICENSE` (`export` in `library.json`, #56). Earlier
+  versions packed the whole repository, the Python codec, CI files, CMake
+  files and the Linux controller examples included.
 - `DCMT_CAP_ESTOP_HOLD`, which no firmware advertises yet: each motor's
   position setpoint keeps following its encoder until that motor's brake
   is released or a new setpoint for it arrives, through the e-stop

@@ -60,6 +60,22 @@ extern "C"
 #define BREAD_WATCHDOG_SET_PAYLOAD_LEN 2
 
 /*
+ * SET_WATCHDOG lease form (3 bytes): [timeout_ms:u16][flags:u8], on
+ * firmware that advertises the per-type WATCHDOG_LEASE capability
+ * (DCMT_CAP_WATCHDOG_LEASE, RLHT_CAP_WATCHDOG_LEASE). With
+ * BREAD_WATCHDOG_FLAG_COMMANDS_ONLY set, only the type's actuating
+ * commands and SET_WATCHDOG itself refresh the watchdog: replies, bare
+ * reads and serial lines no longer do. Re-sending SET_WATCHDOG is the
+ * keepalive. The flags apply until the next SET_WATCHDOG; the 2-byte form
+ * sets them back to 0, the behaviour listed above. Firmware without the
+ * capability reads the first 2 bytes and ignores the flags, so a
+ * controller sends the 3-byte form only when the flag is advertised. The
+ * trip latch, the clear and the safe state are unchanged.
+ */
+#define BREAD_WATCHDOG_SET_LEASE_PAYLOAD_LEN 3
+#define BREAD_WATCHDOG_FLAG_COMMANDS_ONLY 0x01
+
+/*
  * CLEAR_WATCHDOG_TRIP payload: empty. Clears `tripped` and nothing else:
  * it does not arm, disarm or change the timeout, and does not reset
  * trip_count (like any valid command frame, it refreshes liveness).

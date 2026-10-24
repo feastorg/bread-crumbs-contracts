@@ -14,12 +14,19 @@
     "BREAD_OP_GET_WATCHDOG": 125,
     "BREAD_OP_CLEAR_WATCHDOG_TRIP": 124,
     "BREAD_WATCHDOG_SET_PAYLOAD_LEN": 2,
+    "BREAD_WATCHDOG_SET_LEASE_PAYLOAD_LEN": 3,
+    "BREAD_WATCHDOG_FLAG_COMMANDS_ONLY": 1,
     "BREAD_WATCHDOG_CLEAR_TRIP_PAYLOAD_LEN": 0,
     "BREAD_WATCHDOG_OFF_ARMED": 0,
     "BREAD_WATCHDOG_OFF_TIMEOUT_MS": 1,
     "BREAD_WATCHDOG_OFF_TRIPPED": 3,
     "BREAD_WATCHDOG_OFF_TRIP_COUNT": 4,
     "BREAD_WATCHDOG_FIXED_LEN": 5,
+    "BREAD_OP_CLEAR_FAULTS": 123,
+    "BREAD_OP_GET_FAULTS": 122,
+    "BREAD_FAULTS_CLEAR_PAYLOAD_LEN": 0,
+    "BREAD_FAULTS_OFF_FAULTS": 0,
+    "BREAD_FAULTS_FIXED_LEN": 1,
     "BREAD_REFUSE_MALFORMED": 1,
     "BREAD_REFUSE_WATCHDOG_TRIP": 2,
     "BREAD_REFUSE_ESTOP": 3,
@@ -27,6 +34,7 @@
     "BREAD_REFUSE_NOT_BUILT": 5,
     "BREAD_REFUSE_WRONG_MODE": 6,
     "BREAD_REFUSE_UNKNOWN_OP": 7,
+    "BREAD_REFUSE_FAULT": 8,
     "BREAD_MIN_CRUMBS_VERSION": 1200,
     "RLHT_TYPE_ID": 1,
     "RLHT_MODULE_VER_MAJOR": 1,
@@ -47,6 +55,15 @@
     "RLHT_FLAG_ESTOP": 1,
     "RLHT_FLAG_RELAY1_ON": 2,
     "RLHT_FLAG_RELAY2_ON": 4,
+    "RLHT_FLAG_FAULT": 8,
+    "RLHT_SET_PID_PAYLOAD_LEN": 6,
+    "RLHT_SET_PID_X1000_PAYLOAD_LEN": 12,
+    "RLHT_FAULT_H1_OVERTEMP": 1,
+    "RLHT_FAULT_H1_NO_RISE": 2,
+    "RLHT_FAULT_H1_SENSOR": 4,
+    "RLHT_FAULT_H2_OVERTEMP": 8,
+    "RLHT_FAULT_H2_NO_RISE": 16,
+    "RLHT_FAULT_H2_SENSOR": 32,
     "RLHT_CAP_LEVEL_1": 1,
     "RLHT_CAP_LEVEL_2": 2,
     "RLHT_CAP_LEVEL_3": 3,
@@ -61,6 +78,10 @@
     "RLHT_CAP_ESTOP_COUNT": 256,
     "RLHT_CAP_REFUSES": 512,
     "RLHT_CAP_ESTOP_HOLD": 1024,
+    "RLHT_CAP_WATCHDOG_LEASE": 2048,
+    "RLHT_CAP_PID_X1000": 4096,
+    "RLHT_CAP_FAULTS": 8192,
+    "RLHT_CAP_SETPOINT_LIMITS": 16384,
     "RLHT_STATE_OFF_ESTOP_COUNT": 19,
     "RLHT_CAP_BASELINE_FLAGS": 63,
     "DCMT_TYPE_ID": 2,
@@ -75,6 +96,10 @@
     "DCMT_OP_GET_STATE": 128,
     "DCMT_PWM_MAX": 255,
     "DCMT_SET_PID_PAYLOAD_LEN": 13,
+    "DCMT_SET_SETPOINT_PAYLOAD_LEN": 4,
+    "DCMT_SET_SETPOINT_LOOP_PAYLOAD_LEN": 5,
+    "DCMT_FAULT_M1_STALL": 1,
+    "DCMT_FAULT_M2_STALL": 2,
     "DCMT_PID_LOOP_POSITION": 1,
     "DCMT_PID_LOOP_SPEED": 2,
     "DCMT_STATE_OFF_MODE": 0,
@@ -105,6 +130,9 @@
     "DCMT_CAP_CLEAR_WATCHDOG_TRIP": 64,
     "DCMT_CAP_ESTOP_HOLD": 128,
     "DCMT_CAP_REFUSES": 256,
+    "DCMT_CAP_SETPOINT_LOOP": 512,
+    "DCMT_CAP_WATCHDOG_LEASE": 1024,
+    "DCMT_CAP_FAULTS": 2048,
     "DCMT_CAP_BASELINE_FLAGS": 3
   },
   "encode": [
@@ -325,6 +353,78 @@
       "payload": ""
     },
     {
+      "name": "rlht_send_set_pid_x1000",
+      "args": {"kp1_x1000": 1500, "ki1_x1000": 200, "kd1_x1000": 100, "kp2_x1000": 50000, "ki2_x1000": 10, "kd2_x1000": 0},
+      "type_id_name": "RLHT_TYPE_ID",
+      "type_id": 1,
+      "opcode_name": "RLHT_OP_SET_PID",
+      "opcode": 3,
+      "payload": "dc05c800640050c30a000000"
+    },
+    {
+      "name": "rlht_send_set_pid_x1000",
+      "args": {"kp1_x1000": 258, "ki1_x1000": 772, "kd1_x1000": 1286, "kp2_x1000": 1800, "ki2_x1000": 2314, "kd2_x1000": 2828},
+      "type_id_name": "RLHT_TYPE_ID",
+      "type_id": 1,
+      "opcode_name": "RLHT_OP_SET_PID",
+      "opcode": 3,
+      "payload": "02010403060508070a090c0b"
+    },
+    {
+      "name": "rlht_send_set_pid_x1000",
+      "args": {"kp1_x1000": 0, "ki1_x1000": 0, "kd1_x1000": 0, "kp2_x1000": 0, "ki2_x1000": 0, "kd2_x1000": 0},
+      "type_id_name": "RLHT_TYPE_ID",
+      "type_id": 1,
+      "opcode_name": "RLHT_OP_SET_PID",
+      "opcode": 3,
+      "payload": "000000000000000000000000"
+    },
+    {
+      "name": "rlht_send_set_pid_x1000",
+      "args": {"kp1_x1000": 65535, "ki1_x1000": 65535, "kd1_x1000": 65535, "kp2_x1000": 65535, "ki2_x1000": 65535, "kd2_x1000": 65535},
+      "type_id_name": "RLHT_TYPE_ID",
+      "type_id": 1,
+      "opcode_name": "RLHT_OP_SET_PID",
+      "opcode": 3,
+      "payload": "ffffffffffffffffffffffff"
+    },
+    {
+      "name": "rlht_send_set_watchdog_lease",
+      "args": {"timeout_ms": 5000, "flags": 1},
+      "type_id_name": "RLHT_TYPE_ID",
+      "type_id": 1,
+      "opcode_name": "BREAD_OP_SET_WATCHDOG",
+      "opcode": 126,
+      "payload": "881301"
+    },
+    {
+      "name": "rlht_send_set_watchdog_lease",
+      "args": {"timeout_ms": 0, "flags": 0},
+      "type_id_name": "RLHT_TYPE_ID",
+      "type_id": 1,
+      "opcode_name": "BREAD_OP_SET_WATCHDOG",
+      "opcode": 126,
+      "payload": "000000"
+    },
+    {
+      "name": "rlht_send_set_watchdog_lease",
+      "args": {"timeout_ms": 65535, "flags": 255},
+      "type_id_name": "RLHT_TYPE_ID",
+      "type_id": 1,
+      "opcode_name": "BREAD_OP_SET_WATCHDOG",
+      "opcode": 126,
+      "payload": "ffffff"
+    },
+    {
+      "name": "rlht_send_clear_faults",
+      "args": {},
+      "type_id_name": "RLHT_TYPE_ID",
+      "type_id": 1,
+      "opcode_name": "BREAD_OP_CLEAR_FAULTS",
+      "opcode": 123,
+      "payload": ""
+    },
+    {
       "name": "rlht_query_state",
       "args": {},
       "type_id_name": "CRUMBS_TYPE_ID_ANY",
@@ -359,6 +459,15 @@
       "opcode_name": "CRUMBS_CMD_SET_REPLY",
       "opcode": 254,
       "payload": "7d"
+    },
+    {
+      "name": "rlht_query_faults",
+      "args": {},
+      "type_id_name": "CRUMBS_TYPE_ID_ANY",
+      "type_id": 0,
+      "opcode_name": "CRUMBS_CMD_SET_REPLY",
+      "opcode": 254,
+      "payload": "7a"
     },
     {
       "name": "dcmt_send_set_open_loop",
@@ -559,6 +668,78 @@
       "payload": ""
     },
     {
+      "name": "dcmt_send_set_setpoint_loop",
+      "args": {"loop": 1, "target1": 1234, "target2": -1234},
+      "type_id_name": "DCMT_TYPE_ID",
+      "type_id": 2,
+      "opcode_name": "DCMT_OP_SET_SETPOINT",
+      "opcode": 4,
+      "payload": "01d2042efb"
+    },
+    {
+      "name": "dcmt_send_set_setpoint_loop",
+      "args": {"loop": 2, "target1": 30, "target2": -30},
+      "type_id_name": "DCMT_TYPE_ID",
+      "type_id": 2,
+      "opcode_name": "DCMT_OP_SET_SETPOINT",
+      "opcode": 4,
+      "payload": "021e00e2ff"
+    },
+    {
+      "name": "dcmt_send_set_setpoint_loop",
+      "args": {"loop": 0, "target1": 0, "target2": 0},
+      "type_id_name": "DCMT_TYPE_ID",
+      "type_id": 2,
+      "opcode_name": "DCMT_OP_SET_SETPOINT",
+      "opcode": 4,
+      "payload": "0000000000"
+    },
+    {
+      "name": "dcmt_send_set_setpoint_loop",
+      "args": {"loop": 255, "target1": -32768, "target2": 32767},
+      "type_id_name": "DCMT_TYPE_ID",
+      "type_id": 2,
+      "opcode_name": "DCMT_OP_SET_SETPOINT",
+      "opcode": 4,
+      "payload": "ff0080ff7f"
+    },
+    {
+      "name": "dcmt_send_set_watchdog_lease",
+      "args": {"timeout_ms": 5000, "flags": 1},
+      "type_id_name": "DCMT_TYPE_ID",
+      "type_id": 2,
+      "opcode_name": "BREAD_OP_SET_WATCHDOG",
+      "opcode": 126,
+      "payload": "881301"
+    },
+    {
+      "name": "dcmt_send_set_watchdog_lease",
+      "args": {"timeout_ms": 0, "flags": 0},
+      "type_id_name": "DCMT_TYPE_ID",
+      "type_id": 2,
+      "opcode_name": "BREAD_OP_SET_WATCHDOG",
+      "opcode": 126,
+      "payload": "000000"
+    },
+    {
+      "name": "dcmt_send_set_watchdog_lease",
+      "args": {"timeout_ms": 65535, "flags": 255},
+      "type_id_name": "DCMT_TYPE_ID",
+      "type_id": 2,
+      "opcode_name": "BREAD_OP_SET_WATCHDOG",
+      "opcode": 126,
+      "payload": "ffffff"
+    },
+    {
+      "name": "dcmt_send_clear_faults",
+      "args": {},
+      "type_id_name": "DCMT_TYPE_ID",
+      "type_id": 2,
+      "opcode_name": "BREAD_OP_CLEAR_FAULTS",
+      "opcode": 123,
+      "payload": ""
+    },
+    {
       "name": "dcmt_query_state",
       "args": {},
       "type_id_name": "CRUMBS_TYPE_ID_ANY",
@@ -593,6 +774,15 @@
       "opcode_name": "CRUMBS_CMD_SET_REPLY",
       "opcode": 254,
       "payload": "7d"
+    },
+    {
+      "name": "dcmt_query_faults",
+      "args": {},
+      "type_id_name": "CRUMBS_TYPE_ID_ANY",
+      "type_id": 0,
+      "opcode_name": "CRUMBS_CMD_SET_REPLY",
+      "opcode": 254,
+      "payload": "7a"
     }
   ],
   "parse": [
@@ -1184,6 +1374,88 @@
       "payload": "0188130000aa",
       "rc": -1,
       "result": null
+    },
+    {
+      "name": "bread_faults_parse_payload",
+      "type_id_name": "DCMT_TYPE_ID",
+      "type_id": 2,
+      "opcode_name": "BREAD_OP_GET_FAULTS",
+      "opcode": 122,
+      "payload": "00",
+      "rc": 0,
+      "result": {
+        "faults": 0
+      }
+    },
+    {
+      "name": "bread_faults_parse_payload",
+      "type_id_name": "DCMT_TYPE_ID",
+      "type_id": 2,
+      "opcode_name": "BREAD_OP_GET_FAULTS",
+      "opcode": 122,
+      "payload": "03",
+      "rc": 0,
+      "result": {
+        "faults": 3
+      }
+    },
+    {
+      "name": "bread_faults_parse_payload",
+      "type_id_name": "RLHT_TYPE_ID",
+      "type_id": 1,
+      "opcode_name": "BREAD_OP_GET_FAULTS",
+      "opcode": 122,
+      "payload": "21",
+      "rc": 0,
+      "result": {
+        "faults": 33
+      }
+    },
+    {
+      "name": "bread_faults_parse_payload",
+      "type_id_name": "RLHT_TYPE_ID",
+      "type_id": 1,
+      "opcode_name": "BREAD_OP_GET_FAULTS",
+      "opcode": 122,
+      "payload": "80",
+      "rc": 0,
+      "result": {
+        "faults": 128
+      }
+    },
+    {
+      "name": "bread_faults_parse_payload",
+      "type_id_name": "RLHT_TYPE_ID",
+      "type_id": 1,
+      "opcode_name": "BREAD_OP_GET_FAULTS",
+      "opcode": 122,
+      "payload": "ff",
+      "rc": 0,
+      "result": {
+        "faults": 255
+      }
+    },
+    {
+      "name": "bread_faults_parse_payload",
+      "type_id_name": "RLHT_TYPE_ID",
+      "type_id": 1,
+      "opcode_name": "BREAD_OP_GET_FAULTS",
+      "opcode": 122,
+      "payload": "",
+      "rc": -1,
+      "result": null
+    },
+    {
+      "name": "bread_faults_parse_payload",
+      "type_id_name": "DCMT_TYPE_ID",
+      "type_id": 2,
+      "opcode_name": "BREAD_OP_GET_FAULTS",
+      "opcode": 122,
+      "payload": "02aa",
+      "rc": 0,
+      "result": {
+        "faults": 2
+      }
     },
     {
       "name": "bread_parse_version",

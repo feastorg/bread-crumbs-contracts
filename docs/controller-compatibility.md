@@ -94,6 +94,60 @@ firmware with `DCMT_CAP_ESTOP_HOLD`, each position setpoint keeps following
 its encoder after the clear until that motor's brake is released or a new
 setpoint for it arrives, as after an e-stop release.
 
+## Command Lease
+
+On firmware that advertises `*_CAP_WATCHDOG_LEASE`, a controller can arm the
+watchdog with the 3-byte `SET_WATCHDOG` and `BREAD_WATCHDOG_FLAG_COMMANDS_ONLY`.
+Only the type's actuating commands and `SET_WATCHDOG` then refresh it, so a
+state poller that outlives the control path no longer keeps the slice
+driving or heating. The control path re-sends `SET_WATCHDOG` as its keepalive,
+inside the timeout. Without the flag, send the 2-byte form only: older
+firmware reads the first 2 bytes and ignores the flags, so the lease would
+silently not apply.
+
+## DCMT Setpoints By Loop
+
+On firmware that advertises `DCMT_CAP_SETPOINT_LOOP`:
+
+- send position and speed targets with the 5-byte `SET_SETPOINT`
+  (`DCMT_PID_LOOP_POSITION` or `DCMT_PID_LOOP_SPEED`); each writes only its
+  own loop's setpoints, so both can be loaded before the mode;
+- the 4-byte form writes the position setpoints only;
+- a switch into closed-loop speed starts from the speed setpoint.
+
+Without the flag the 4-byte form writes both setpoints, so a position target
+becomes a speed request at the next switch to closed-loop speed. Set a speed
+target there only after entering speed mode.
+
+## RLHT Wide Gains
+
+On firmware that advertises `RLHT_CAP_PID_X1000`, send gains with the 12-byte
+`SET_PID` (u16 x1000, 0 to 65.535). Without the flag only the 6-byte u8 x10
+form (0 to 25.5 in steps of 0.1) exists, and a 12-byte payload would be read
+as u8 gains on firmware that does not check the length.
+
+## RLHT Setpoint Limits
+
+On firmware that advertises `RLHT_CAP_SETPOINT_LIMITS`, `SET_SETPOINTS` is
+refused `BREAD_REFUSE_WRONG_MODE` in open loop and
+`BREAD_REFUSE_UNDEFINED_VALUE` above the firmware's ceiling, and nothing is
+stored. Switch to closed loop first, then send the setpoint; closed loop with
+setpoint 0 is off.
+
+## Latched Faults
+
+On firmware that advertises `DCMT_CAP_FAULTS` or `RLHT_CAP_FAULTS`:
+
+- query `BREAD_OP_GET_FAULTS` for the latched faults (`DCMT_FAULT_*`,
+  `RLHT_FAULT_*`); RLHT also sets `RLHT_FLAG_FAULT` in GET_STATE, so the
+  regular poll shows that one is latched;
+- while any fault is latched, commands that could start motion or heat are
+  refused `BREAD_REFUSE_FAULT`, unless an e-stop or watchdog-trip hold reports
+  its own reason first;
+- send `BREAD_OP_CLEAR_FAULTS` only on an operator's request, after the cause
+  is dealt with. It clears every fault and resumes nothing: re-command
+  afterwards, as after a watchdog trip.
+
 ## DCMT E-stop Hold
 
 On DCMT firmware that advertises `DCMT_CAP_ESTOP_HOLD`, a hardware e-stop

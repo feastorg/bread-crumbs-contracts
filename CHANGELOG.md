@@ -2,6 +2,44 @@
 
 ## [Unreleased]
 
+### Added
+
+All additive and behind new capability bits; no existing opcode, payload or
+reply length changes, and every golden vector from 0.10.0 is unchanged.
+
+- Latched faults, shared by both families (`bread_faults.h`):
+  `BREAD_OP_GET_FAULTS` (0x7A, reply `[faults:u8]`), `BREAD_OP_CLEAR_FAULTS`
+  (0x7B, empty), and `BREAD_REFUSE_FAULT` (0x08). While any fault is latched
+  the slice holds its safe state and refuses commands that could start
+  motion or heat; clearing resumes nothing. DCMT reports `DCMT_FAULT_M1_STALL`
+  and `_M2_STALL` behind `DCMT_CAP_FAULTS` (bit 11, feastorg/Slice_DCMT#64);
+  RLHT reports over-temperature, no-rise and sensor faults per heater
+  (`RLHT_FAULT_*`) and `RLHT_FLAG_FAULT` in GET_STATE behind `RLHT_CAP_FAULTS`
+  (bit 13, feastorg/Slice_RLHT#48). Both opcodes join `BREAD_COMMON_OPS`, so a
+  family opcode equal to either fails to build.
+- A command lease for the watchdog: `SET_WATCHDOG` takes
+  `[timeout_ms:u16][flags:u8]` with `BREAD_WATCHDOG_FLAG_COMMANDS_ONLY`, behind
+  `DCMT_CAP_WATCHDOG_LEASE` (bit 10) and `RLHT_CAP_WATCHDOG_LEASE` (bit 11).
+  Only actuating commands and `SET_WATCHDOG` then refresh it (#63).
+- DCMT `SET_SETPOINT` takes `[loop:u8][target1:i16][target2:i16]`, which
+  writes only that loop's setpoints, behind `DCMT_CAP_SETPOINT_LOOP` (bit 9).
+  With the flag the 4-byte form writes the position setpoints only
+  (feastorg/Slice_DCMT#57).
+- RLHT `SET_PID` takes six u16 gains x1000 (12 bytes) beside the 6-byte form,
+  behind `RLHT_CAP_PID_X1000` (bit 12) (#64).
+- `RLHT_CAP_SETPOINT_LIMITS` (bit 14): `SET_SETPOINTS` is refused in open
+  loop and above the firmware's ceiling (feastorg/Slice_RLHT#47).
+- The two changes to existing payloads, `DCMT_CAP_SETPOINT_LOOP`'s 4-byte
+  `SET_SETPOINT` and `RLHT_CAP_SETPOINT_LIMITS`'s refusals, are listed as
+  fail-safe exceptions in `capabilities.md`, like `*_CAP_CLEAR_WATCHDOG_TRIP`
+  and `*_CAP_ESTOP_HOLD`: the controller that understands them ships with or
+  before the firmware that sets them.
+- Python codec: `bread_faults`, the new constants, and
+  `dcmt_send_set_setpoint_loop`, `dcmt_send_set_watchdog_lease`,
+  `dcmt_send_clear_faults`, `dcmt_query_faults`, `rlht_send_set_pid_x1000`,
+  `rlht_send_set_watchdog_lease`, `rlht_send_clear_faults`,
+  `rlht_query_faults`, each with golden vectors.
+
 ### Changed
 
 - `bread_watchdog.h` lists what refreshes the command watchdog, as both

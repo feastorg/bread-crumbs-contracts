@@ -112,13 +112,14 @@ families share:
 
 | Reason | Name | Meaning |
 | --- | --- | --- |
-| `0x01` | `BREAD_REFUSE_MALFORMED` | the payload does not decode: shorter than the opcode's wire size, or not the exact length DCMT SET_PID and CLEAR_WATCHDOG_TRIP fix; a longer payload for any other opcode is accepted |
+| `0x01` | `BREAD_REFUSE_MALFORMED` | the payload does not decode: shorter than the opcode's wire size, or not one of the exact lengths DCMT SET_PID, CLEAR_WATCHDOG_TRIP and CLEAR_FAULTS fix, and, behind their flags, DCMT SET_SETPOINT (4 or 5) and RLHT SET_PID (6 or 12); a longer payload for any other opcode is accepted |
 | `0x02` | `BREAD_REFUSE_WATCHDOG_TRIP` | a watchdog trip is held |
 | `0x03` | `BREAD_REFUSE_ESTOP` | a hardware e-stop is held |
 | `0x04` | `BREAD_REFUSE_UNDEFINED_VALUE` | a field holds a value the contract does not define |
 | `0x05` | `BREAD_REFUSE_NOT_BUILT` | a defined value this build leaves out; GET_CAPS says what it supports |
 | `0x06` | `BREAD_REFUSE_WRONG_MODE` | the command does not apply in the current mode |
 | `0x07` | `BREAD_REFUSE_UNKNOWN_OP` | the opcode is not a family or bread-common command; a GET opcode sent as a command frame, instead of through SET_REPLY, is refused this way |
+| `0x08` | `BREAD_REFUSE_FAULT` | a fault is latched (`bread_faults.h`); an e-stop or watchdog-trip hold takes precedence |
 
 `0x00` is never a refusal reason, since CRUMBS reports it for an applied
 command, and `0x80`-`0xFF` are left to the families. A released value never
@@ -283,6 +284,7 @@ are what CI runs.
 include/bread/
   bread_ops.h
   bread_caps.h
+  bread_faults.h
   bread_refuse.h
   bread_version_helpers.h
   dcmt_ops.h

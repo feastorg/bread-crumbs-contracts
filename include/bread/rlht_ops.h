@@ -23,7 +23,7 @@ extern "C"
 /*
  * Type and opcodes, declared once: the build fails on a duplicate opcode,
  * an opcode above 0xFF or equal to 0xFE, an opcode equal to a bread-common
- * one (0x7C-0x7F, BREAD_COMMON_OPS), or a type of 0x00. Each payload
+ * one (0x7A-0x7F, BREAD_COMMON_OPS), or a type of 0x00. Each payload
  * layout is declared once below and packed and unpacked through the
  * generated codec by the wrappers here; Slice firmware is meant to use the
  * same pack/unpack (feastorg/Slice_RLHT#11, feastorg/Slice_DCMT#28).
@@ -50,7 +50,13 @@ BREAD_CHECK_FAMILY_OPS(RLHT, RLHT_OPS)
 #define RLHT_SET_MODE_FIELDS(X) X(u8, mode)
 CRUMBS_DEFINE_PAYLOAD(rlht_set_mode, 1, RLHT_SET_MODE_FIELDS)
 
-/* SET_SETPOINTS: [sp1:i16][sp2:i16], deci-degrees C */
+/* SET_SETPOINTS: [sp1:i16][sp2:i16], deci-degrees C. Firmware advertising
+   RLHT_CAP_SETPOINT_LIMITS refuses it in open loop with
+   BREAD_REFUSE_WRONG_MODE, and refuses a setpoint above its build-time
+   ceiling with BREAD_REFUSE_UNDEFINED_VALUE, storing neither; the ceiling
+   is the firmware's (Slice_RLHT defaults to 500 C). Without it, any value
+   is stored in either mode, and one sent in open loop heats at the next
+   switch to closed loop. */
 #define RLHT_SET_SETPOINTS_FIELDS(X) X(i16, sp1_deci_c) X(i16, sp2_deci_c)
 CRUMBS_DEFINE_PAYLOAD(rlht_set_setpoints, 4, RLHT_SET_SETPOINTS_FIELDS)
 
@@ -63,6 +69,28 @@ CRUMBS_DEFINE_PAYLOAD(rlht_set_setpoints, 4, RLHT_SET_SETPOINTS_FIELDS)
     X(u8, ki2_x10)             \
     X(u8, kd2_x10)
 CRUMBS_DEFINE_PAYLOAD(rlht_set_pid, 6, RLHT_SET_PID_FIELDS)
+
+/* SET_PID wide form, on firmware that advertises RLHT_CAP_PID_X1000:
+   [kp1][ki1][kd1][kp2][ki2][kd2], each u16, gain x1000 (0 to 65.535). Such
+   firmware takes exactly 6 or 12 bytes and refuses any other length with
+   BREAD_REFUSE_MALFORMED. Send the 12-byte form only when the capability
+   is advertised: older firmware would read its first 6 bytes as u8 x10
+   gains. */
+#define RLHT_SET_PID_X1000_FIELDS(X) \
+    X(u16, kp1_x1000)                \
+    X(u16, ki1_x1000)                \
+    X(u16, kd1_x1000)                \
+    X(u16, kp2_x1000)                \
+    X(u16, ki2_x1000)                \
+    X(u16, kd2_x1000)
+CRUMBS_DEFINE_PAYLOAD(rlht_set_pid_x1000, 12, RLHT_SET_PID_X1000_FIELDS)
+
+#define RLHT_SET_PID_PAYLOAD_LEN 6
+#define RLHT_SET_PID_X1000_PAYLOAD_LEN 12
+CRUMBS_STATIC_ASSERT(RLHT_SET_PID_PAYLOAD_LEN == rlht_set_pid_wire_size,
+                     "RLHT_SET_PID_PAYLOAD_LEN must equal the rlht_set_pid field list");
+CRUMBS_STATIC_ASSERT(RLHT_SET_PID_X1000_PAYLOAD_LEN == rlht_set_pid_x1000_wire_size,
+                     "RLHT_SET_PID_X1000_PAYLOAD_LEN must equal the rlht_set_pid_x1000 field list");
 
 /* SET_PERIODS: [p1_ms:u16][p2_ms:u16] */
 #define RLHT_SET_PERIODS_FIELDS(X) X(u16, p1_ms) X(u16, p2_ms)
@@ -121,6 +149,8 @@ CRUMBS_DEFINE_PAYLOAD(rlht_state, 19, RLHT_STATE_FIELDS)
 #define RLHT_FLAG_ESTOP 0x01
 #define RLHT_FLAG_RELAY1_ON 0x02
 #define RLHT_FLAG_RELAY2_ON 0x04
+/* A fault is latched (RLHT_CAP_FAULTS); GET_FAULTS says which. */
+#define RLHT_FLAG_FAULT 0x08
 
 #define RLHT_CAP_LEVEL_1 0x01
 #define RLHT_CAP_LEVEL_2 0x02
@@ -156,6 +186,34 @@ CRUMBS_DEFINE_PAYLOAD(rlht_state, 19, RLHT_STATE_FIELDS)
    Without it, commands sent during the hold are stored and heat at the
    release. */
 #define RLHT_CAP_ESTOP_HOLD ((uint32_t)1u << 10)
+/* SET_WATCHDOG takes the 3-byte lease form (bread_watchdog.h); with
+   BREAD_WATCHDOG_FLAG_COMMANDS_ONLY, only SET_MODE, SET_SETPOINTS,
+   SET_OPEN_DUTY and SET_WATCHDOG refresh it. Advertised only together with
+   RLHT_CAP_CMD_WATCHDOG. */
+#define RLHT_CAP_WATCHDOG_LEASE ((uint32_t)1u << 11)
+/* SET_PID takes the 12-byte u16 x1000 form beside the 6-byte one. */
+#define RLHT_CAP_PID_X1000 ((uint32_t)1u << 12)
+/* Heater faults latch (bread_faults.h): over-temperature in either mode,
+   no rise at near-full output in closed loop, and an open thermocouple.
+   GET_FAULTS reports RLHT_FAULT_* bits, GET_STATE sets RLHT_FLAG_FAULT, and
+   BREAD_OP_CLEAR_FAULTS clears them. While any fault is latched both
+   heaters are off, and SET_MODE, SET_SETPOINTS and SET_OPEN_DUTY are refused
+   with BREAD_REFUSE_FAULT. The thresholds are the firmware's build-time
+   settings. Advertised only together with RLHT_CAP_REFUSES. */
+#define RLHT_CAP_FAULTS ((uint32_t)1u << 13)
+/* SET_SETPOINTS is refused in open loop and above the firmware's ceiling
+   (see SET_SETPOINTS above). Advertised only together with
+   RLHT_CAP_REFUSES. */
+#define RLHT_CAP_SETPOINT_LIMITS ((uint32_t)1u << 14)
+
+/* GET_FAULTS bits, per heater: over-temperature, no rise at near-full
+   output, and an open thermocouple. */
+#define RLHT_FAULT_H1_OVERTEMP 0x01
+#define RLHT_FAULT_H1_NO_RISE 0x02
+#define RLHT_FAULT_H1_SENSOR 0x04
+#define RLHT_FAULT_H2_OVERTEMP 0x08
+#define RLHT_FAULT_H2_NO_RISE 0x10
+#define RLHT_FAULT_H2_SENSOR 0x20
 
 #define RLHT_CAP_BASELINE_FLAGS (RLHT_CAP_MODE_CONTROL | RLHT_CAP_SETPOINT_CONTROL | \
                                  RLHT_CAP_PID_TUNING | RLHT_CAP_PERIOD_CONTROL | \
@@ -263,6 +321,28 @@ static inline int rlht_send_set_pid_x10(const crumbs_device_t *dev,
     return crumbs_controller_send(dev->ctx, dev->addr, &msg, dev->write_fn, dev->io);
 }
 
+/* The 12-byte SET_PID; each gain is the gain x1000. Send only when
+   RLHT_CAP_PID_X1000 is advertised. */
+static inline int rlht_send_set_pid_x1000(const crumbs_device_t *dev,
+                                          uint16_t kp1_x1000, uint16_t ki1_x1000, uint16_t kd1_x1000,
+                                          uint16_t kp2_x1000, uint16_t ki2_x1000, uint16_t kd2_x1000)
+{
+    crumbs_message_t msg;
+    rlht_set_pid_x1000_t v;
+    if (rlht_validate_write_device(dev) != 0)
+        return -1;
+    v.kp1_x1000 = kp1_x1000;
+    v.ki1_x1000 = ki1_x1000;
+    v.kd1_x1000 = kd1_x1000;
+    v.kp2_x1000 = kp2_x1000;
+    v.ki2_x1000 = ki2_x1000;
+    v.kd2_x1000 = kd2_x1000;
+    crumbs_msg_init(&msg, RLHT_TYPE_ID, RLHT_OP_SET_PID);
+    if (rlht_set_pid_x1000_pack(&msg, &v) != 0)
+        return -1;
+    return crumbs_controller_send(dev->ctx, dev->addr, &msg, dev->write_fn, dev->io);
+}
+
 static inline int rlht_send_set_periods(const crumbs_device_t *dev, uint16_t p1_ms, uint16_t p2_ms)
 {
     crumbs_message_t msg;
@@ -315,6 +395,30 @@ static inline int rlht_send_set_watchdog(const crumbs_device_t *dev, uint16_t ti
     return crumbs_controller_send(dev->ctx, dev->addr, &msg, dev->write_fn, dev->io);
 }
 
+/* The 3-byte SET_WATCHDOG (BREAD_WATCHDOG_FLAG_*). Send only when
+   RLHT_CAP_WATCHDOG_LEASE is advertised. */
+static inline int rlht_send_set_watchdog_lease(const crumbs_device_t *dev, uint16_t timeout_ms, uint8_t flags)
+{
+    crumbs_message_t msg;
+    if (rlht_validate_write_device(dev) != 0)
+        return -1;
+    crumbs_msg_init(&msg, RLHT_TYPE_ID, BREAD_OP_SET_WATCHDOG);
+    crumbs_msg_add_u16(&msg, timeout_ms);
+    crumbs_msg_add_u8(&msg, flags);
+    return crumbs_controller_send(dev->ctx, dev->addr, &msg, dev->write_fn, dev->io);
+}
+
+/* Send only when RLHT_CAP_FAULTS is advertised, and only on an operator's
+   request. Empty payload; clears every latched fault and nothing else. */
+static inline int rlht_send_clear_faults(const crumbs_device_t *dev)
+{
+    crumbs_message_t msg;
+    if (rlht_validate_write_device(dev) != 0)
+        return -1;
+    crumbs_msg_init(&msg, RLHT_TYPE_ID, BREAD_OP_CLEAR_FAULTS);
+    return crumbs_controller_send(dev->ctx, dev->addr, &msg, dev->write_fn, dev->io);
+}
+
 /* Send only when RLHT_CAP_CLEAR_WATCHDOG_TRIP is advertised, and only on an
    operator's request. Empty payload; clears the trip and nothing else. */
 static inline int rlht_send_clear_watchdog_trip(const crumbs_device_t *dev)
@@ -353,6 +457,16 @@ static inline int rlht_query_caps(const crumbs_device_t *dev)
         return -1;
     crumbs_msg_init(&msg, 0, CRUMBS_CMD_SET_REPLY);
     crumbs_msg_add_u8(&msg, BREAD_OP_GET_CAPS);
+    return crumbs_controller_send(dev->ctx, dev->addr, &msg, dev->write_fn, dev->io);
+}
+
+static inline int rlht_query_faults(const crumbs_device_t *dev)
+{
+    crumbs_message_t msg;
+    if (rlht_validate_write_device(dev) != 0)
+        return -1;
+    crumbs_msg_init(&msg, 0, CRUMBS_CMD_SET_REPLY);
+    crumbs_msg_add_u8(&msg, BREAD_OP_GET_FAULTS);
     return crumbs_controller_send(dev->ctx, dev->addr, &msg, dev->write_fn, dev->io);
 }
 
@@ -512,6 +626,30 @@ static inline int rlht_get_watchdog(const crumbs_device_t *dev, bread_watchdog_r
         return -1;
 
     return bread_watchdog_parse_payload(reply.data, reply.data_len, out);
+}
+
+static inline int rlht_get_faults(const crumbs_device_t *dev, bread_faults_result_t *out)
+{
+    crumbs_message_t reply;
+    int rc;
+
+    if (!out || rlht_validate_query_device(dev) != 0)
+        return -1;
+
+    rc = rlht_query_faults(dev);
+    if (rc != 0)
+        return rc;
+
+    dev->delay_fn(CRUMBS_DEFAULT_QUERY_DELAY_US);
+
+    rc = crumbs_controller_read(dev->ctx, dev->addr, &reply, dev->read_fn, dev->io);
+    if (rc != 0)
+        return rc;
+
+    if (reply.type_id != RLHT_TYPE_ID || reply.opcode != BREAD_OP_GET_FAULTS)
+        return -1;
+
+    return bread_faults_parse_payload(reply.data, reply.data_len, out);
 }
 
 #ifdef __cplusplus

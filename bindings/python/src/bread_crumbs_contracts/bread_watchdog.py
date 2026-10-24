@@ -1,8 +1,9 @@
 """Shared bus-liveness command watchdog (``bread_watchdog.h``).
 
 Firmware boots disarmed; a controller arms it with SET_WATCHDOG. While
-armed, any valid inbound frame refreshes it; expiry drives the slice's
-actuators to their safe state without touching estop. Support is
+armed, bus and serial traffic refreshes it (``bread_watchdog.h`` lists what
+does); expiry drives the slice's actuators to their safe state without
+touching estop. Support is
 advertised per type by a capability flag (``RLHT_CAP_CMD_WATCHDOG``,
 ``DCMT_CAP_CMD_WATCHDOG``); do not send SET_WATCHDOG unless it is set.
 
@@ -25,11 +26,13 @@ __all__ = [
     "BREAD_OP_GET_WATCHDOG",
     "BREAD_OP_SET_WATCHDOG",
     "BREAD_WATCHDOG_CLEAR_TRIP_PAYLOAD_LEN",
+    "BREAD_WATCHDOG_FLAG_COMMANDS_ONLY",
     "BREAD_WATCHDOG_FIXED_LEN",
     "BREAD_WATCHDOG_OFF_ARMED",
     "BREAD_WATCHDOG_OFF_TIMEOUT_MS",
     "BREAD_WATCHDOG_OFF_TRIPPED",
     "BREAD_WATCHDOG_OFF_TRIP_COUNT",
+    "BREAD_WATCHDOG_SET_LEASE_PAYLOAD_LEN",
     "BREAD_WATCHDOG_SET_PAYLOAD_LEN",
     "BreadWatchdogResult",
     "bread_watchdog_parse_payload",
@@ -41,6 +44,14 @@ BREAD_OP_CLEAR_WATCHDOG_TRIP = 0x7C
 
 #: SET_WATCHDOG payload: ``[timeout_ms:u16]``, 0 = disarm.
 BREAD_WATCHDOG_SET_PAYLOAD_LEN = 2
+
+#: SET_WATCHDOG lease form: ``[timeout_ms:u16][flags:u8]``, on firmware that
+#: advertises the per-type ``*_CAP_WATCHDOG_LEASE``. With
+#: ``BREAD_WATCHDOG_FLAG_COMMANDS_ONLY`` only actuating commands and
+#: SET_WATCHDOG itself refresh the watchdog; re-sending SET_WATCHDOG is the
+#: keepalive, and the 2-byte form sets the flags back to 0.
+BREAD_WATCHDOG_SET_LEASE_PAYLOAD_LEN = 3
+BREAD_WATCHDOG_FLAG_COMMANDS_ONLY = 0x01
 
 #: CLEAR_WATCHDOG_TRIP payload: empty. Clears ``tripped`` only; it does not
 #: arm, disarm or change the timeout, and does not reset ``trip_count``.

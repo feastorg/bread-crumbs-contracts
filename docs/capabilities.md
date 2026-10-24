@@ -87,6 +87,25 @@ Flags:
   the controller reads GET_STATE to see what took effect. On firmware
   without the flag every frame reports applied, including ones the
   firmware ignored
+- bit 9: `DCMT_CAP_SETPOINT_LOOP` — `SET_SETPOINT` takes the 5-byte form
+  `[loop:u8][target1:i16][target2:i16]`, which writes only the named
+  loop's setpoints (`DCMT_PID_LOOP_*`), and the 4-byte form writes the
+  position setpoints only. Any other length is refused
+  `BREAD_REFUSE_MALFORMED`, an undefined loop `BREAD_REFUSE_UNDEFINED_VALUE`.
+  A switch into closed-loop speed starts from the speed setpoint, never a
+  position target. Advertised only together with `DCMT_CAP_REFUSES`. On
+  firmware without the flag the 4-byte form writes both
+- bit 10: `DCMT_CAP_WATCHDOG_LEASE` — `SET_WATCHDOG` takes the 3-byte lease
+  form (`bread_watchdog.h`). With `BREAD_WATCHDOG_FLAG_COMMANDS_ONLY` only
+  `SET_OPEN_LOOP`, `SET_BRAKE`, `SET_MODE`, `SET_SETPOINT` and
+  `SET_WATCHDOG` refresh the watchdog. Advertised only together with
+  `DCMT_CAP_CMD_WATCHDOG`
+- bit 11: `DCMT_CAP_FAULTS` — stall faults latch per motor (`bread_faults.h`):
+  `BREAD_OP_GET_FAULTS` reports `DCMT_FAULT_*` and `BREAD_OP_CLEAR_FAULTS`
+  clears them. While any is latched both motors are braked, and
+  `SET_OPEN_LOOP`, `SET_SETPOINT`, `SET_MODE` and any brake release are
+  refused `BREAD_REFUSE_FAULT`. Advertised only together with
+  `DCMT_CAP_REFUSES`
 
 Baseline flag set:
 
@@ -149,12 +168,34 @@ Flags:
   resumes with setpoints or duties. Advertised only together with
   `RLHT_CAP_REFUSES`. On firmware without the flag, commands sent during
   the hold are stored and heat at the release
+- bit 11: `RLHT_CAP_WATCHDOG_LEASE` — `SET_WATCHDOG` takes the 3-byte lease
+  form (`bread_watchdog.h`). With `BREAD_WATCHDOG_FLAG_COMMANDS_ONLY` only
+  `SET_MODE`, `SET_SETPOINTS`, `SET_OPEN_DUTY` and `SET_WATCHDOG` refresh
+  the watchdog. Advertised only together with `RLHT_CAP_CMD_WATCHDOG`
+- bit 12: `RLHT_CAP_PID_X1000` — `SET_PID` takes the 12-byte form, six u16
+  gains x1000, beside the 6-byte u8 x10 one, and refuses any other length
+  `BREAD_REFUSE_MALFORMED`
+- bit 13: `RLHT_CAP_FAULTS` — heater faults latch (`bread_faults.h`):
+  over-temperature in either mode, no rise at near-full output in closed
+  loop, and an open thermocouple. `BREAD_OP_GET_FAULTS` reports
+  `RLHT_FAULT_*`, GET_STATE sets `RLHT_FLAG_FAULT`, and
+  `BREAD_OP_CLEAR_FAULTS` clears them. While any is latched both heaters
+  are off, and `SET_MODE`, `SET_SETPOINTS` and `SET_OPEN_DUTY` are refused
+  `BREAD_REFUSE_FAULT`. Thresholds are the firmware's build-time settings.
+  Advertised only together with `RLHT_CAP_REFUSES`
+- bit 14: `RLHT_CAP_SETPOINT_LIMITS` — `SET_SETPOINTS` is refused
+  `BREAD_REFUSE_WRONG_MODE` in open loop and `BREAD_REFUSE_UNDEFINED_VALUE`
+  above the firmware's ceiling (Slice_RLHT defaults to 500 °C), storing
+  neither. Advertised only together with `RLHT_CAP_REFUSES`. On firmware
+  without the flag any value is stored in either mode, and one sent in open
+  loop heats at the next switch to closed loop
 
 Baseline flag set:
 
 - `RLHT_CAP_BASELINE_FLAGS` (all currently supported RLHT control features;
   does not include `RLHT_CAP_CMD_WATCHDOG`, `RLHT_CAP_CLEAR_WATCHDOG_TRIP`,
-  `RLHT_CAP_ESTOP_COUNT`, `RLHT_CAP_REFUSES` or `RLHT_CAP_ESTOP_HOLD`)
+  `RLHT_CAP_ESTOP_COUNT`, `RLHT_CAP_REFUSES`, `RLHT_CAP_ESTOP_HOLD` or any
+  later flag)
 
 ## Extension Policy
 
@@ -170,7 +211,7 @@ Capability evolution is additive-only:
 - preserve semantics of existing flags/opcodes,
 - append payload fields only through a new schema version.
 
-Two exceptions change what a controller that predates the flag sees, so
+Four exceptions change what a controller that predates the flag sees, so
 the controller release that understands the flag must ship with or before
 such firmware (see `controller-compatibility.md`):
 
@@ -186,3 +227,12 @@ such firmware (see `controller-compatibility.md`):
   or a new setpoint arrives, where they used to stop following at the
   clear. All three fail safe, but a controller that predates the flag does
   not expect them.
+- Firmware that advertises `DCMT_CAP_SETPOINT_LOOP` writes the 4-byte
+  `SET_SETPOINT` into the position setpoints only. A controller that
+  predates the flag and relied on it to set a speed target leaves the speed
+  setpoint where it was, so closed-loop speed runs at that target (0 after
+  a hold), not at the value it sent.
+- Firmware that advertises `RLHT_CAP_SETPOINT_LIMITS` refuses
+  `SET_SETPOINTS` in open loop and above its ceiling, where it used to
+  store them. A controller that predates the flag sees a refusal, and
+  nothing heats from a stored value.

@@ -21,8 +21,10 @@
  */
 
 /* The payload does not decode: it is shorter than the opcode's wire size,
-   or, for an opcode the contract fixes at an exact length (DCMT SET_PID,
-   CLEAR_WATCHDOG_TRIP), it is any other length. A longer payload for any
+   or, for an opcode the contract fixes at exact lengths (DCMT SET_PID,
+   CLEAR_WATCHDOG_TRIP, CLEAR_FAULTS, and behind their flags DCMT
+   SET_SETPOINT at 4 or 5 and RLHT SET_PID at 6 or 12), it is any other
+   length. A longer payload for any
    other opcode is not malformed: CRUMBS *_unpack reads the fields from the
    front and ignores trailing bytes, which is how a layout is extended
    compatibly (crumbs_ops.h). */
@@ -58,5 +60,10 @@
    through SET_REPLY. CRUMBS rejects such a frame itself only when no
    on_message callback takes it. */
 #define BREAD_REFUSE_UNKNOWN_OP 0x07
+
+/* A fault is latched (bread_faults.h), and the command could start motion
+   or heat. On firmware that advertises *_CAP_FAULTS. An e-stop or
+   watchdog-trip hold takes precedence: its reason is reported instead. */
+#define BREAD_REFUSE_FAULT 0x08
 
 #endif /* BREAD_REFUSE_H */

@@ -15,6 +15,7 @@ from importlib.metadata import version as _distribution_version
 
 from . import (
     bread_caps,
+    bread_faults,
     bread_refuse,
     bread_version_helpers,
     bread_watchdog,
@@ -23,6 +24,7 @@ from . import (
     rlht_ops,
 )
 from .bread_caps import *  # noqa: F403
+from .bread_faults import *  # noqa: F403
 from .bread_refuse import *  # noqa: F403
 from .bread_version_helpers import *  # noqa: F403
 from .bread_watchdog import *  # noqa: F403
@@ -38,6 +40,7 @@ __all__: list[str] = []
 __all__ += crumbs.__all__
 __all__ += bread_caps.__all__
 __all__ += bread_refuse.__all__
+__all__ += bread_faults.__all__
 __all__ += bread_watchdog.__all__
 __all__ += bread_version_helpers.__all__
 __all__ += rlht_ops.__all__

@@ -144,12 +144,20 @@ static void emit_constants(void)
     CONST(BREAD_OP_GET_WATCHDOG);
     CONST(BREAD_OP_CLEAR_WATCHDOG_TRIP);
     CONST(BREAD_WATCHDOG_SET_PAYLOAD_LEN);
+    CONST(BREAD_WATCHDOG_SET_LEASE_PAYLOAD_LEN);
+    CONST(BREAD_WATCHDOG_FLAG_COMMANDS_ONLY);
     CONST(BREAD_WATCHDOG_CLEAR_TRIP_PAYLOAD_LEN);
     CONST(BREAD_WATCHDOG_OFF_ARMED);
     CONST(BREAD_WATCHDOG_OFF_TIMEOUT_MS);
     CONST(BREAD_WATCHDOG_OFF_TRIPPED);
     CONST(BREAD_WATCHDOG_OFF_TRIP_COUNT);
     CONST(BREAD_WATCHDOG_FIXED_LEN);
+
+    CONST(BREAD_OP_CLEAR_FAULTS);
+    CONST(BREAD_OP_GET_FAULTS);
+    CONST(BREAD_FAULTS_CLEAR_PAYLOAD_LEN);
+    CONST(BREAD_FAULTS_OFF_FAULTS);
+    CONST(BREAD_FAULTS_FIXED_LEN);
 
     CONST(BREAD_REFUSE_MALFORMED);
     CONST(BREAD_REFUSE_WATCHDOG_TRIP);
@@ -158,6 +166,7 @@ static void emit_constants(void)
     CONST(BREAD_REFUSE_NOT_BUILT);
     CONST(BREAD_REFUSE_WRONG_MODE);
     CONST(BREAD_REFUSE_UNKNOWN_OP);
+    CONST(BREAD_REFUSE_FAULT);
 
     CONST(BREAD_MIN_CRUMBS_VERSION);
 
@@ -180,6 +189,15 @@ static void emit_constants(void)
     CONST(RLHT_FLAG_ESTOP);
     CONST(RLHT_FLAG_RELAY1_ON);
     CONST(RLHT_FLAG_RELAY2_ON);
+    CONST(RLHT_FLAG_FAULT);
+    CONST(RLHT_SET_PID_PAYLOAD_LEN);
+    CONST(RLHT_SET_PID_X1000_PAYLOAD_LEN);
+    CONST(RLHT_FAULT_H1_OVERTEMP);
+    CONST(RLHT_FAULT_H1_NO_RISE);
+    CONST(RLHT_FAULT_H1_SENSOR);
+    CONST(RLHT_FAULT_H2_OVERTEMP);
+    CONST(RLHT_FAULT_H2_NO_RISE);
+    CONST(RLHT_FAULT_H2_SENSOR);
     CONST(RLHT_CAP_LEVEL_1);
     CONST(RLHT_CAP_LEVEL_2);
     CONST(RLHT_CAP_LEVEL_3);
@@ -194,6 +212,10 @@ static void emit_constants(void)
     CONST(RLHT_CAP_ESTOP_COUNT);
     CONST(RLHT_CAP_REFUSES);
     CONST(RLHT_CAP_ESTOP_HOLD);
+    CONST(RLHT_CAP_WATCHDOG_LEASE);
+    CONST(RLHT_CAP_PID_X1000);
+    CONST(RLHT_CAP_FAULTS);
+    CONST(RLHT_CAP_SETPOINT_LIMITS);
     CONST(RLHT_STATE_OFF_ESTOP_COUNT);
     CONST(RLHT_CAP_BASELINE_FLAGS);
 
@@ -209,6 +231,10 @@ static void emit_constants(void)
     CONST(DCMT_OP_GET_STATE);
     CONST(DCMT_PWM_MAX);
     CONST(DCMT_SET_PID_PAYLOAD_LEN);
+    CONST(DCMT_SET_SETPOINT_PAYLOAD_LEN);
+    CONST(DCMT_SET_SETPOINT_LOOP_PAYLOAD_LEN);
+    CONST(DCMT_FAULT_M1_STALL);
+    CONST(DCMT_FAULT_M2_STALL);
     CONST(DCMT_PID_LOOP_POSITION);
     CONST(DCMT_PID_LOOP_SPEED);
     CONST(DCMT_STATE_OFF_MODE);
@@ -239,6 +265,9 @@ static void emit_constants(void)
     CONST(DCMT_CAP_CLEAR_WATCHDOG_TRIP);
     CONST(DCMT_CAP_ESTOP_HOLD);
     CONST(DCMT_CAP_REFUSES);
+    CONST(DCMT_CAP_SETPOINT_LOOP);
+    CONST(DCMT_CAP_WATCHDOG_LEASE);
+    CONST(DCMT_CAP_FAULTS);
     CONST(DCMT_CAP_BASELINE_FLAGS);
 
     fprintf(g_out, "\n  },\n");
@@ -341,6 +370,31 @@ static void vec_rlht_send_set_watchdog(uint16_t timeout_ms)
                 rlht_send_set_watchdog(&g_dev, timeout_ms));
 }
 
+static void vec_rlht_send_set_pid_x1000(uint16_t kp1, uint16_t ki1, uint16_t kd1,
+                                        uint16_t kp2, uint16_t ki2, uint16_t kd2)
+{
+    char a[224];
+    ARGS(a, "\"kp1_x1000\": %u, \"ki1_x1000\": %u, \"kd1_x1000\": %u, "
+            "\"kp2_x1000\": %u, \"ki2_x1000\": %u, \"kd2_x1000\": %u",
+         kp1, ki1, kd1, kp2, ki2, kd2);
+    emit_encode("rlht_send_set_pid_x1000", a, "RLHT_TYPE_ID", "RLHT_OP_SET_PID",
+                rlht_send_set_pid_x1000(&g_dev, kp1, ki1, kd1, kp2, ki2, kd2));
+}
+
+static void vec_rlht_send_set_watchdog_lease(uint16_t timeout_ms, uint8_t flags)
+{
+    char a[64];
+    ARGS(a, "\"timeout_ms\": %u, \"flags\": %u", timeout_ms, flags);
+    emit_encode("rlht_send_set_watchdog_lease", a, "RLHT_TYPE_ID", "BREAD_OP_SET_WATCHDOG",
+                rlht_send_set_watchdog_lease(&g_dev, timeout_ms, flags));
+}
+
+static void vec_rlht_send_clear_faults(void)
+{
+    emit_encode("rlht_send_clear_faults", "", "RLHT_TYPE_ID", "BREAD_OP_CLEAR_FAULTS",
+                rlht_send_clear_faults(&g_dev));
+}
+
 static void vec_rlht_send_clear_watchdog_trip(void)
 {
     emit_encode("rlht_send_clear_watchdog_trip", "", "RLHT_TYPE_ID", "BREAD_OP_CLEAR_WATCHDOG_TRIP",
@@ -398,6 +452,28 @@ static void vec_dcmt_send_set_watchdog(uint16_t timeout_ms)
                 dcmt_send_set_watchdog(&g_dev, timeout_ms));
 }
 
+static void vec_dcmt_send_set_setpoint_loop(uint8_t loop, int16_t t1, int16_t t2)
+{
+    char a[96];
+    ARGS(a, "\"loop\": %u, \"target1\": %d, \"target2\": %d", loop, t1, t2);
+    emit_encode("dcmt_send_set_setpoint_loop", a, "DCMT_TYPE_ID", "DCMT_OP_SET_SETPOINT",
+                dcmt_send_set_setpoint_loop(&g_dev, loop, t1, t2));
+}
+
+static void vec_dcmt_send_set_watchdog_lease(uint16_t timeout_ms, uint8_t flags)
+{
+    char a[64];
+    ARGS(a, "\"timeout_ms\": %u, \"flags\": %u", timeout_ms, flags);
+    emit_encode("dcmt_send_set_watchdog_lease", a, "DCMT_TYPE_ID", "BREAD_OP_SET_WATCHDOG",
+                dcmt_send_set_watchdog_lease(&g_dev, timeout_ms, flags));
+}
+
+static void vec_dcmt_send_clear_faults(void)
+{
+    emit_encode("dcmt_send_clear_faults", "", "DCMT_TYPE_ID", "BREAD_OP_CLEAR_FAULTS",
+                dcmt_send_clear_faults(&g_dev));
+}
+
 static void vec_dcmt_send_clear_watchdog_trip(void)
 {
     emit_encode("dcmt_send_clear_watchdog_trip", "", "DCMT_TYPE_ID", "BREAD_OP_CLEAR_WATCHDOG_TRIP",
@@ -445,10 +521,23 @@ static void emit_encode_vectors(void)
     vec_rlht_send_set_watchdog(UINT16_MAX);
     vec_rlht_send_clear_watchdog_trip();
 
+    /* 1.5 / 0.2 / 0.1 and 50 / 0.01 / 0, gains with a high and a low byte
+       each, zero, and extremes. */
+    vec_rlht_send_set_pid_x1000(1500, 200, 100, 50000, 10, 0);
+    vec_rlht_send_set_pid_x1000(0x0102, 0x0304, 0x0506, 0x0708, 0x090A, 0x0B0C);
+    vec_rlht_send_set_pid_x1000(0, 0, 0, 0, 0, 0);
+    vec_rlht_send_set_pid_x1000(UINT16_MAX, UINT16_MAX, UINT16_MAX, UINT16_MAX, UINT16_MAX, UINT16_MAX);
+
+    vec_rlht_send_set_watchdog_lease(5000, BREAD_WATCHDOG_FLAG_COMMANDS_ONLY);
+    vec_rlht_send_set_watchdog_lease(0, 0);
+    vec_rlht_send_set_watchdog_lease(UINT16_MAX, 255);
+    vec_rlht_send_clear_faults();
+
     vec_query("rlht_query_state", rlht_query_state(&g_dev));
     vec_query("rlht_query_version", rlht_query_version(&g_dev));
     vec_query("rlht_query_caps", rlht_query_caps(&g_dev));
     vec_query("rlht_query_watchdog", rlht_query_watchdog(&g_dev));
+    vec_query("rlht_query_faults", rlht_query_faults(&g_dev));
 
     vec_dcmt_send_set_open_loop(0, 0);
     vec_dcmt_send_set_open_loop(-255, 255);
@@ -480,10 +569,21 @@ static void emit_encode_vectors(void)
     vec_dcmt_send_set_watchdog(UINT16_MAX);
     vec_dcmt_send_clear_watchdog_trip();
 
+    vec_dcmt_send_set_setpoint_loop(DCMT_PID_LOOP_POSITION, 1234, -1234);
+    vec_dcmt_send_set_setpoint_loop(DCMT_PID_LOOP_SPEED, 30, -30);
+    vec_dcmt_send_set_setpoint_loop(0, 0, 0);
+    vec_dcmt_send_set_setpoint_loop(255, INT16_MIN, INT16_MAX);
+
+    vec_dcmt_send_set_watchdog_lease(5000, BREAD_WATCHDOG_FLAG_COMMANDS_ONLY);
+    vec_dcmt_send_set_watchdog_lease(0, 0);
+    vec_dcmt_send_set_watchdog_lease(UINT16_MAX, 255);
+    vec_dcmt_send_clear_faults();
+
     vec_query("dcmt_query_state", dcmt_query_state(&g_dev));
     vec_query("dcmt_query_version", dcmt_query_version(&g_dev));
     vec_query("dcmt_query_caps", dcmt_query_caps(&g_dev));
     vec_query("dcmt_query_watchdog", dcmt_query_watchdog(&g_dev));
+    vec_query("dcmt_query_faults", dcmt_query_faults(&g_dev));
 
     array_end(0);
 }
@@ -657,6 +757,21 @@ static void vec_bread_watchdog_parse(const char *type_id_name, const crumbs_mess
     result_end();
 }
 
+static void vec_bread_faults_parse(const char *type_id_name, const crumbs_message_t *reply, uint8_t len)
+{
+    bread_faults_result_t r;
+    int rc = bread_faults_parse_payload(reply->data, len, &r);
+
+    parse_header("bread_faults_parse_payload", type_id_name, reply->type_id,
+                 "BREAD_OP_GET_FAULTS", BREAD_OP_GET_FAULTS, reply->data, len, rc);
+    if (rc != 0)
+        return;
+
+    result_begin();
+    RESULT_FIELD("faults", r.faults, 1);
+    result_end();
+}
+
 /*
  * The version reply has no opcode macro in the headers; rlht_query_version()
  * and dcmt_query_version() request the literal opcode 0x00.
@@ -808,6 +923,30 @@ static void emit_parse_vectors(void)
         die("watchdog build");
     crumbs_msg_add_u8(&m, 0xAA);
     vec_bread_watchdog_parse("DCMT_TYPE_ID", &m, m.data_len);
+
+    /* GET_FAULTS: replies built by the header's own builder: none, each
+       family's bits, a value above 0x7F, all bits, empty, and one trailing
+       byte, which bread_faults_parse_payload() ignores. */
+    if (bread_faults_build_reply(&m, DCMT_TYPE_ID, 0) != 0)
+        die("faults build");
+    vec_bread_faults_parse("DCMT_TYPE_ID", &m, m.data_len);
+    if (bread_faults_build_reply(&m, DCMT_TYPE_ID, DCMT_FAULT_M1_STALL | DCMT_FAULT_M2_STALL) != 0)
+        die("faults build");
+    vec_bread_faults_parse("DCMT_TYPE_ID", &m, m.data_len);
+    if (bread_faults_build_reply(&m, RLHT_TYPE_ID, RLHT_FAULT_H1_OVERTEMP | RLHT_FAULT_H2_SENSOR) != 0)
+        die("faults build");
+    vec_bread_faults_parse("RLHT_TYPE_ID", &m, m.data_len);
+    if (bread_faults_build_reply(&m, RLHT_TYPE_ID, 0x80) != 0)
+        die("faults build");
+    vec_bread_faults_parse("RLHT_TYPE_ID", &m, m.data_len);
+    if (bread_faults_build_reply(&m, RLHT_TYPE_ID, 0xFF) != 0)
+        die("faults build");
+    vec_bread_faults_parse("RLHT_TYPE_ID", &m, m.data_len);
+    vec_bread_faults_parse("RLHT_TYPE_ID", &m, 0);
+    if (bread_faults_build_reply(&m, DCMT_TYPE_ID, DCMT_FAULT_M2_STALL) != 0)
+        die("faults build");
+    crumbs_msg_add_u8(&m, 0xAA);
+    vec_bread_faults_parse("DCMT_TYPE_ID", &m, m.data_len);
 
     /* Version: 1400 (CRUMBS 0.14.0, written as a literal so the file does not
        change with the CRUMBS build) and the minimum (1200), module 1.0.0,

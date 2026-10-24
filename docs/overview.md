@@ -8,6 +8,7 @@ This documentation describes the public wire-contract model for BREADS-compatibl
 - Capability discovery (`BREAD_OP_GET_CAPS`)
 - Shared command watchdog (`BREAD_OP_SET_WATCHDOG` / `BREAD_OP_GET_WATCHDOG` /
   `BREAD_OP_CLEAR_WATCHDOG_TRIP`)
+- Shared latched faults (`BREAD_OP_GET_FAULTS` / `BREAD_OP_CLEAR_FAULTS`)
 - Controller compatibility behavior
 - Type-ID allocation and versioning policy
 

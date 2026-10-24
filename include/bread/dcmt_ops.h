@@ -23,7 +23,7 @@ extern "C"
 /*
  * Type and opcodes, declared once: the build fails on a duplicate opcode,
  * an opcode above 0xFF or equal to 0xFE, an opcode equal to a bread-common
- * one (0x7C-0x7F, BREAD_COMMON_OPS), or a type of 0x00. Each payload
+ * one (0x7A-0x7F, BREAD_COMMON_OPS), or a type of 0x00. Each payload
  * layout is declared once below and packed and unpacked through the
  * generated codec by the wrappers here; Slice firmware is meant to use the
  * same pack/unpack (feastorg/Slice_RLHT#11, feastorg/Slice_DCMT#28).
@@ -62,9 +62,34 @@ CRUMBS_DEFINE_PAYLOAD(dcmt_set_brake, 2, DCMT_SET_BRAKE_FIELDS)
 #define DCMT_SET_MODE_FIELDS(X) X(u8, mode)
 CRUMBS_DEFINE_PAYLOAD(dcmt_set_mode, 1, DCMT_SET_MODE_FIELDS)
 
-/* SET_SETPOINT: [target1:i16][target2:i16] */
+/*
+ * SET_SETPOINT: [target1:i16][target2:i16], or, on firmware that advertises
+ * DCMT_CAP_SETPOINT_LOOP, [loop:u8][target1:i16][target2:i16].
+ *
+ * The 5-byte form writes only the named loop's setpoints, loop being
+ * DCMT_PID_LOOP_POSITION (counts) or DCMT_PID_LOOP_SPEED (RPM, only when
+ * DCMT_CAP_CLOSED_LOOP_SPEED is advertised). With the capability the 4-byte
+ * form writes the position setpoints only; without it, firmware writes the
+ * targets into both the position and the speed setpoint, so a position
+ * target becomes a speed request at the next switch to closed-loop speed
+ * (feastorg/Slice_DCMT#57). Firmware with the capability refuses any other
+ * length with BREAD_REFUSE_MALFORMED and an undefined loop with
+ * BREAD_REFUSE_UNDEFINED_VALUE, and stores nothing. A switch into
+ * closed-loop speed starts from the speed setpoint, never from a position
+ * target. Send the 5-byte form only when the capability is advertised.
+ */
 #define DCMT_SET_SETPOINT_FIELDS(X) X(i16, target1) X(i16, target2)
 CRUMBS_DEFINE_PAYLOAD(dcmt_set_setpoint, 4, DCMT_SET_SETPOINT_FIELDS)
+
+#define DCMT_SET_SETPOINT_LOOP_FIELDS(X) X(u8, loop) X(i16, target1) X(i16, target2)
+CRUMBS_DEFINE_PAYLOAD(dcmt_set_setpoint_loop, 5, DCMT_SET_SETPOINT_LOOP_FIELDS)
+
+#define DCMT_SET_SETPOINT_PAYLOAD_LEN 4
+#define DCMT_SET_SETPOINT_LOOP_PAYLOAD_LEN 5
+CRUMBS_STATIC_ASSERT(DCMT_SET_SETPOINT_PAYLOAD_LEN == dcmt_set_setpoint_wire_size,
+                     "DCMT_SET_SETPOINT_PAYLOAD_LEN must equal the dcmt_set_setpoint field list");
+CRUMBS_STATIC_ASSERT(DCMT_SET_SETPOINT_LOOP_PAYLOAD_LEN == dcmt_set_setpoint_loop_wire_size,
+                     "DCMT_SET_SETPOINT_LOOP_PAYLOAD_LEN must equal the dcmt_set_setpoint_loop field list");
 
 /*
  * SET_PID (13 bytes):
@@ -183,6 +208,25 @@ CRUMBS_STATIC_ASSERT(DCMT_STATE_FIXED_LEN == dcmt_state_wire_size,
    in part applies what it can and is refused (see bread_refuse.h). Without
    it every frame reports applied, including ones the firmware ignored. */
 #define DCMT_CAP_REFUSES ((uint32_t)1u << 8)
+/* SET_SETPOINT takes the 5-byte loop form, and the 4-byte form writes the
+   position setpoints only (see SET_SETPOINT above). Advertised only together
+   with DCMT_CAP_REFUSES. Without it, the 4-byte form writes both. */
+#define DCMT_CAP_SETPOINT_LOOP ((uint32_t)1u << 9)
+/* SET_WATCHDOG takes the 3-byte lease form (bread_watchdog.h); with
+   BREAD_WATCHDOG_FLAG_COMMANDS_ONLY, only SET_OPEN_LOOP, SET_BRAKE,
+   SET_MODE, SET_SETPOINT and SET_WATCHDOG refresh it. Advertised only
+   together with DCMT_CAP_CMD_WATCHDOG. */
+#define DCMT_CAP_WATCHDOG_LEASE ((uint32_t)1u << 10)
+/* Stall faults latch per motor (bread_faults.h): GET_FAULTS reports
+   DCMT_FAULT_* bits and BREAD_OP_CLEAR_FAULTS clears them. While any fault
+   is latched both motors are braked, and SET_OPEN_LOOP, SET_SETPOINT,
+   SET_MODE and any brake release are refused with BREAD_REFUSE_FAULT.
+   Advertised only together with DCMT_CAP_REFUSES. */
+#define DCMT_CAP_FAULTS ((uint32_t)1u << 11)
+
+/* GET_FAULTS bits: the motor was driven but its encoder did not advance. */
+#define DCMT_FAULT_M1_STALL 0x01
+#define DCMT_FAULT_M2_STALL 0x02
 
 #define DCMT_CAP_BASELINE_FLAGS (DCMT_CAP_OPEN_LOOP_CONTROL | DCMT_CAP_BRAKE_CONTROL)
 
@@ -261,6 +305,24 @@ static inline int dcmt_send_set_setpoint(const crumbs_device_t *dev, int16_t tar
     return crumbs_controller_send(dev->ctx, dev->addr, &msg, dev->write_fn, dev->io);
 }
 
+/* The 5-byte SET_SETPOINT: loop is DCMT_PID_LOOP_*. Send only when
+   DCMT_CAP_SETPOINT_LOOP is advertised. */
+static inline int dcmt_send_set_setpoint_loop(const crumbs_device_t *dev, uint8_t loop,
+                                              int16_t target1, int16_t target2)
+{
+    crumbs_message_t msg;
+    dcmt_set_setpoint_loop_t v;
+    if (dcmt_validate_write_device(dev) != 0)
+        return -1;
+    v.loop = loop;
+    v.target1 = target1;
+    v.target2 = target2;
+    crumbs_msg_init(&msg, DCMT_TYPE_ID, DCMT_OP_SET_SETPOINT);
+    if (dcmt_set_setpoint_loop_pack(&msg, &v) != 0)
+        return -1;
+    return crumbs_controller_send(dev->ctx, dev->addr, &msg, dev->write_fn, dev->io);
+}
+
 /* loop is DCMT_PID_LOOP_*; each gain is the gain x1000. */
 static inline int dcmt_send_set_pid(const crumbs_device_t *dev, uint8_t loop,
                                     uint16_t kp1_x1000, uint16_t ki1_x1000, uint16_t kd1_x1000,
@@ -290,6 +352,30 @@ static inline int dcmt_send_set_watchdog(const crumbs_device_t *dev, uint16_t ti
         return -1;
     crumbs_msg_init(&msg, DCMT_TYPE_ID, BREAD_OP_SET_WATCHDOG);
     crumbs_msg_add_u16(&msg, timeout_ms);
+    return crumbs_controller_send(dev->ctx, dev->addr, &msg, dev->write_fn, dev->io);
+}
+
+/* The 3-byte SET_WATCHDOG (BREAD_WATCHDOG_FLAG_*). Send only when
+   DCMT_CAP_WATCHDOG_LEASE is advertised. */
+static inline int dcmt_send_set_watchdog_lease(const crumbs_device_t *dev, uint16_t timeout_ms, uint8_t flags)
+{
+    crumbs_message_t msg;
+    if (dcmt_validate_write_device(dev) != 0)
+        return -1;
+    crumbs_msg_init(&msg, DCMT_TYPE_ID, BREAD_OP_SET_WATCHDOG);
+    crumbs_msg_add_u16(&msg, timeout_ms);
+    crumbs_msg_add_u8(&msg, flags);
+    return crumbs_controller_send(dev->ctx, dev->addr, &msg, dev->write_fn, dev->io);
+}
+
+/* Send only when DCMT_CAP_FAULTS is advertised, and only on an operator's
+   request. Empty payload; clears every latched fault and nothing else. */
+static inline int dcmt_send_clear_faults(const crumbs_device_t *dev)
+{
+    crumbs_message_t msg;
+    if (dcmt_validate_write_device(dev) != 0)
+        return -1;
+    crumbs_msg_init(&msg, DCMT_TYPE_ID, BREAD_OP_CLEAR_FAULTS);
     return crumbs_controller_send(dev->ctx, dev->addr, &msg, dev->write_fn, dev->io);
 }
 
@@ -331,6 +417,16 @@ static inline int dcmt_query_caps(const crumbs_device_t *dev)
         return -1;
     crumbs_msg_init(&msg, 0, CRUMBS_CMD_SET_REPLY);
     crumbs_msg_add_u8(&msg, BREAD_OP_GET_CAPS);
+    return crumbs_controller_send(dev->ctx, dev->addr, &msg, dev->write_fn, dev->io);
+}
+
+static inline int dcmt_query_faults(const crumbs_device_t *dev)
+{
+    crumbs_message_t msg;
+    if (dcmt_validate_write_device(dev) != 0)
+        return -1;
+    crumbs_msg_init(&msg, 0, CRUMBS_CMD_SET_REPLY);
+    crumbs_msg_add_u8(&msg, BREAD_OP_GET_FAULTS);
     return crumbs_controller_send(dev->ctx, dev->addr, &msg, dev->write_fn, dev->io);
 }
 
@@ -505,6 +601,30 @@ static inline int dcmt_get_watchdog(const crumbs_device_t *dev, bread_watchdog_r
         return -1;
 
     return bread_watchdog_parse_payload(reply.data, reply.data_len, out);
+}
+
+static inline int dcmt_get_faults(const crumbs_device_t *dev, bread_faults_result_t *out)
+{
+    crumbs_message_t reply;
+    int rc;
+
+    if (!out || dcmt_validate_query_device(dev) != 0)
+        return -1;
+
+    rc = dcmt_query_faults(dev);
+    if (rc != 0)
+        return rc;
+
+    dev->delay_fn(CRUMBS_DEFAULT_QUERY_DELAY_US);
+
+    rc = crumbs_controller_read(dev->ctx, dev->addr, &reply, dev->read_fn, dev->io);
+    if (rc != 0)
+        return rc;
+
+    if (reply.type_id != DCMT_TYPE_ID || reply.opcode != BREAD_OP_GET_FAULTS)
+        return -1;
+
+    return bread_faults_parse_payload(reply.data, reply.data_len, out);
 }
 
 #ifdef __cplusplus

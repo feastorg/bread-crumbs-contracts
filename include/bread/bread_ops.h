@@ -8,6 +8,7 @@
 
 #include "bread_caps.h"
 #include "bread_common_ops.h"
+#include "bread_faults.h"
 #include "bread_refuse.h"
 #include "bread_watchdog.h"
 #include "bread_version_helpers.h"

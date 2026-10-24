@@ -4,6 +4,7 @@
 #include <stdint.h>
 
 #include "bread_caps.h"
+#include "bread_faults.h"
 #include "bread_refuse.h"
 #include "bread_watchdog.h"
 
@@ -15,6 +16,8 @@
  * replace the other. BREAD_CHECK_FAMILY_OPS() turns that into a build error.
  */
 #define BREAD_COMMON_OPS(X)                                         \
+    X(BREAD_OP_GET_FAULTS, BREAD_OP_GET_FAULTS)                     \
+    X(BREAD_OP_CLEAR_FAULTS, BREAD_OP_CLEAR_FAULTS)                 \
     X(BREAD_OP_CLEAR_WATCHDOG_TRIP, BREAD_OP_CLEAR_WATCHDOG_TRIP)   \
     X(BREAD_OP_GET_WATCHDOG, BREAD_OP_GET_WATCHDOG)                 \
     X(BREAD_OP_SET_WATCHDOG, BREAD_OP_SET_WATCHDOG)                 \

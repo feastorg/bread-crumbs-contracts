@@ -12,6 +12,7 @@ from dataclasses import dataclass
 
 from ._wire import i16, require_exact_len, u8, u16
 from .bread_caps import BREAD_OP_GET_CAPS
+from .bread_faults import BREAD_OP_GET_FAULTS
 from .bread_version_helpers import BREAD_OP_GET_VERSION
 from .bread_watchdog import BREAD_OP_GET_WATCHDOG
 
@@ -23,12 +24,17 @@ __all__ = [
     "DCMT_CAP_CLOSED_LOOP_SPEED",
     "DCMT_CAP_CMD_WATCHDOG",
     "DCMT_CAP_ESTOP_HOLD",
+    "DCMT_CAP_FAULTS",
     "DCMT_CAP_LEVEL_1",
     "DCMT_CAP_LEVEL_2",
     "DCMT_CAP_LEVEL_3",
     "DCMT_CAP_OPEN_LOOP_CONTROL",
     "DCMT_CAP_PID_TUNING",
     "DCMT_CAP_REFUSES",
+    "DCMT_CAP_SETPOINT_LOOP",
+    "DCMT_CAP_WATCHDOG_LEASE",
+    "DCMT_FAULT_M1_STALL",
+    "DCMT_FAULT_M2_STALL",
     "DCMT_MODE_CLOSED_POSITION",
     "DCMT_MODE_CLOSED_SPEED",
     "DCMT_MODE_OPEN_LOOP",
@@ -45,6 +51,8 @@ __all__ = [
     "DCMT_PID_LOOP_SPEED",
     "DCMT_PWM_MAX",
     "DCMT_SET_PID_PAYLOAD_LEN",
+    "DCMT_SET_SETPOINT_LOOP_PAYLOAD_LEN",
+    "DCMT_SET_SETPOINT_PAYLOAD_LEN",
     "DCMT_STATE_FIXED_LEN",
     "DCMT_STATE_OFF_BRAKES",
     "DCMT_STATE_OFF_ESTOP",
@@ -62,16 +70,20 @@ __all__ = [
     "DcmtStateResult",
     "dcmt_parse_state_payload",
     "dcmt_query_caps",
+    "dcmt_query_faults",
     "dcmt_query_state",
     "dcmt_query_version",
     "dcmt_query_watchdog",
+    "dcmt_send_clear_faults",
     "dcmt_send_clear_watchdog_trip",
     "dcmt_send_set_brake",
     "dcmt_send_set_mode",
     "dcmt_send_set_open_loop",
     "dcmt_send_set_pid",
     "dcmt_send_set_setpoint",
+    "dcmt_send_set_setpoint_loop",
     "dcmt_send_set_watchdog",
+    "dcmt_send_set_watchdog_lease",
 ]
 
 DCMT_TYPE_ID = 0x02
@@ -97,6 +109,14 @@ DCMT_OP_GET_STATE = 0x80
 DCMT_SET_PID_PAYLOAD_LEN = 13
 DCMT_PID_LOOP_POSITION = 0x01
 DCMT_PID_LOOP_SPEED = 0x02
+
+#: SET_SETPOINT: ``[target1:i16][target2:i16]``, or, on firmware advertising
+#: ``DCMT_CAP_SETPOINT_LOOP``, ``[loop:u8][target1:i16][target2:i16]``. The
+#: 5-byte form writes only the named loop's setpoints (``DCMT_PID_LOOP_*``);
+#: with the capability the 4-byte form writes the position setpoints only,
+#: and without it both. Send the 5-byte form only when it is advertised.
+DCMT_SET_SETPOINT_PAYLOAD_LEN = 4
+DCMT_SET_SETPOINT_LOOP_PAYLOAD_LEN = 5
 
 #: GET_STATE payload (20 bytes):
 #: ``[mode:u8][m1_pwm:i16][m2_pwm:i16][sp1:i16][sp2:i16]``
@@ -156,6 +176,19 @@ DCMT_CAP_ESTOP_HOLD = 1 << 7
 #: Without this flag every frame reports applied, including ones the firmware
 #: ignored.
 DCMT_CAP_REFUSES = 1 << 8
+#: SET_SETPOINT takes the 5-byte loop form, and the 4-byte form writes the
+#: position setpoints only. Without it, the 4-byte form writes both.
+DCMT_CAP_SETPOINT_LOOP = 1 << 9
+#: SET_WATCHDOG takes the 3-byte lease form (``bread_watchdog``).
+DCMT_CAP_WATCHDOG_LEASE = 1 << 10
+#: Stall faults latch per motor: GET_FAULTS reports ``DCMT_FAULT_*`` bits and
+#: CLEAR_FAULTS clears them; while any is latched both motors are braked and
+#: motion commands are refused with ``BREAD_REFUSE_FAULT``.
+DCMT_CAP_FAULTS = 1 << 11
+
+#: GET_FAULTS bits: the motor was driven but its encoder did not advance.
+DCMT_FAULT_M1_STALL = 0x01
+DCMT_FAULT_M2_STALL = 0x02
 
 DCMT_CAP_BASELINE_FLAGS = DCMT_CAP_OPEN_LOOP_CONTROL | DCMT_CAP_BRAKE_CONTROL
 
@@ -168,6 +201,9 @@ _U16 = struct.Struct("<H")
 _I16_I16 = struct.Struct("<hh")
 _PID = struct.Struct("<BHHHHHH")
 assert _PID.size == DCMT_SET_PID_PAYLOAD_LEN
+_U16_U8 = struct.Struct("<HB")
+_SETPOINT_LOOP = struct.Struct("<Bhh")
+assert _SETPOINT_LOOP.size == DCMT_SET_SETPOINT_LOOP_PAYLOAD_LEN
 
 
 @dataclass(frozen=True, slots=True)
@@ -213,6 +249,15 @@ def dcmt_send_set_setpoint(target1: int, target2: int) -> bytes:
     return _I16_I16.pack(i16("target1", target1), i16("target2", target2))
 
 
+def dcmt_send_set_setpoint_loop(loop: int, target1: int, target2: int) -> bytes:
+    """``DCMT_OP_SET_SETPOINT`` 5-byte payload: ``[loop:u8][target1:i16][target2:i16]``.
+
+    Writes only the named loop's setpoints. Send only when
+    ``DCMT_CAP_SETPOINT_LOOP`` is advertised.
+    """
+    return _SETPOINT_LOOP.pack(u8("loop", loop), i16("target1", target1), i16("target2", target2))
+
+
 def dcmt_send_set_pid(
     loop: int,
     kp1_x1000: int,
@@ -244,6 +289,23 @@ def dcmt_send_set_watchdog(timeout_ms: int) -> bytes:
     return _U16.pack(u16("timeout_ms", timeout_ms))
 
 
+def dcmt_send_set_watchdog_lease(timeout_ms: int, flags: int) -> bytes:
+    """``BREAD_OP_SET_WATCHDOG`` lease payload: ``[timeout_ms:u16][flags:u8]``.
+
+    Send only when ``DCMT_CAP_WATCHDOG_LEASE`` is advertised.
+    """
+    return _U16_U8.pack(u16("timeout_ms", timeout_ms), u8("flags", flags))
+
+
+def dcmt_send_clear_faults() -> bytes:
+    """``BREAD_OP_CLEAR_FAULTS`` payload: empty.
+
+    Send only when ``DCMT_CAP_FAULTS`` is advertised, and only on an
+    operator's request.
+    """
+    return b""
+
+
 def dcmt_send_clear_watchdog_trip() -> bytes:
     """``BREAD_OP_CLEAR_WATCHDOG_TRIP`` payload: empty.
 
@@ -266,6 +328,11 @@ def dcmt_query_version() -> bytes:
 def dcmt_query_caps() -> bytes:
     """SET_REPLY payload requesting ``BREAD_OP_GET_CAPS``."""
     return _U8.pack(BREAD_OP_GET_CAPS)
+
+
+def dcmt_query_faults() -> bytes:
+    """SET_REPLY payload requesting ``BREAD_OP_GET_FAULTS``."""
+    return _U8.pack(BREAD_OP_GET_FAULTS)
 
 
 def dcmt_query_watchdog() -> bytes:

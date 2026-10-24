@@ -19,6 +19,9 @@ PID_OK = {
 }  # fmt: skip
 DCMT_PID_GAINS = ("kp1_x1000", "ki1_x1000", "kd1_x1000", "kp2_x1000", "ki2_x1000", "kd2_x1000")
 DCMT_PID_OK = {"loop": 1, **dict.fromkeys(DCMT_PID_GAINS, 0)}
+RLHT_PID_X1000_OK: dict[str, int] = dict.fromkeys(DCMT_PID_GAINS, 0)
+LEASE_OK = {"timeout_ms": 0, "flags": 0}
+SETPOINT_LOOP_OK = {"loop": 1, "target1": 0, "target2": 0}
 
 # (encoder, in-range kwargs, field under test, bounds)
 RANGE_CASES: list[tuple[Callable[..., bytes], dict[str, int], str, tuple[int, int]]] = [
@@ -33,6 +36,9 @@ RANGE_CASES: list[tuple[Callable[..., bytes], dict[str, int], str, tuple[int, in
     (bcc.rlht_send_set_open_duty, {"duty1_pct": 0, "duty2_pct": 0}, "duty1_pct", U8),
     (bcc.rlht_send_set_open_duty, {"duty1_pct": 0, "duty2_pct": 0}, "duty2_pct", U8),
     (bcc.rlht_send_set_watchdog, {"timeout_ms": 0}, "timeout_ms", U16),
+    *[(bcc.rlht_send_set_pid_x1000, RLHT_PID_X1000_OK, field, U16) for field in DCMT_PID_GAINS],
+    (bcc.rlht_send_set_watchdog_lease, LEASE_OK, "timeout_ms", U16),
+    (bcc.rlht_send_set_watchdog_lease, LEASE_OK, "flags", U8),
     (bcc.dcmt_send_set_open_loop, {"m1_pwm": 0, "m2_pwm": 0}, "m1_pwm", I16),
     (bcc.dcmt_send_set_open_loop, {"m1_pwm": 0, "m2_pwm": 0}, "m2_pwm", I16),
     (bcc.dcmt_send_set_brake, {"m1_brake": 0, "m2_brake": 0}, "m1_brake", U8),
@@ -43,6 +49,11 @@ RANGE_CASES: list[tuple[Callable[..., bytes], dict[str, int], str, tuple[int, in
     (bcc.dcmt_send_set_pid, DCMT_PID_OK, "loop", U8),
     *[(bcc.dcmt_send_set_pid, DCMT_PID_OK, field, U16) for field in DCMT_PID_GAINS],
     (bcc.dcmt_send_set_watchdog, {"timeout_ms": 0}, "timeout_ms", U16),
+    (bcc.dcmt_send_set_setpoint_loop, SETPOINT_LOOP_OK, "loop", U8),
+    (bcc.dcmt_send_set_setpoint_loop, SETPOINT_LOOP_OK, "target1", I16),
+    (bcc.dcmt_send_set_setpoint_loop, SETPOINT_LOOP_OK, "target2", I16),
+    (bcc.dcmt_send_set_watchdog_lease, LEASE_OK, "timeout_ms", U16),
+    (bcc.dcmt_send_set_watchdog_lease, LEASE_OK, "flags", U8),
 ]
 
 
@@ -92,6 +103,7 @@ PARSER_FIXED_LEN: dict[str, int] = {
     "dcmt_parse_state_payload": bcc.DCMT_STATE_FIXED_LEN,
     "bread_caps_parse_payload": bcc.BREAD_CAPS_V1_PAYLOAD_LEN,
     "bread_watchdog_parse_payload": bcc.BREAD_WATCHDOG_FIXED_LEN,
+    "bread_faults_parse_payload": bcc.BREAD_FAULTS_FIXED_LEN,
     "bread_parse_version": bcc.BREAD_VERSION_PAYLOAD_LEN,
 }
 EXACT_LENGTH_PARSERS = {"dcmt_parse_state_payload", "bread_watchdog_parse_payload"}

@@ -7,6 +7,7 @@ refusal reason, since CRUMBS reports it for an applied command, and
 
 __all__ = [
     "BREAD_REFUSE_ESTOP",
+    "BREAD_REFUSE_FAULT",
     "BREAD_REFUSE_MALFORMED",
     "BREAD_REFUSE_NOT_BUILT",
     "BREAD_REFUSE_UNDEFINED_VALUE",
@@ -16,8 +17,9 @@ __all__ = [
 ]
 
 #: The payload does not decode: shorter than the opcode's wire size, or, for
-#: an opcode the contract fixes at an exact length (DCMT SET_PID,
-#: CLEAR_WATCHDOG_TRIP), any other length. A longer payload for any other
+#: an opcode the contract fixes at exact lengths (DCMT SET_PID,
+#: CLEAR_WATCHDOG_TRIP, CLEAR_FAULTS, and behind their flags DCMT SET_SETPOINT
+#: at 4 or 5 and RLHT SET_PID at 6 or 12), any other length. A longer payload for any other
 #: opcode is not malformed.
 BREAD_REFUSE_MALFORMED = 0x01
 
@@ -43,3 +45,7 @@ BREAD_REFUSE_WRONG_MODE = 0x06
 #: An opcode that is not a command of the family or of bread-common,
 #: including a GET opcode sent as a command frame instead of through SET_REPLY.
 BREAD_REFUSE_UNKNOWN_OP = 0x07
+#: A fault is latched (``bread_faults.h``), and the command could start motion
+#: or heat. On firmware that advertises ``*_CAP_FAULTS``; an e-stop or
+#: watchdog-trip hold takes precedence.
+BREAD_REFUSE_FAULT = 0x08

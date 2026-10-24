@@ -165,6 +165,7 @@ class RlhtStateResult:
 
     mode: int
     flags: int
+    # BREAD_INVALID_I16 while that thermocouple reads open, as is t2_deci_c.
     t1_deci_c: int
     t2_deci_c: int
     sp1_deci_c: int

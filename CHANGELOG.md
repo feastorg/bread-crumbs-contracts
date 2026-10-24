@@ -4,6 +4,16 @@
 
 ### Changed
 
+- `bread_watchdog.h` lists what refreshes the command watchdog, as both
+  Slices implement it: every frame CRUMBS hands to `on_message`, every reply
+  build for a registered query, and any serial line; and what doesn't. A
+  bare I2C read re-runs the last staged reply, so a second reader keeps the
+  watchdog fed. The README said "any valid inbound frame" and now points at
+  the header, as `controller-compatibility.md` does (#62). Whether it should
+  track commands rather than traffic is #63.
+- `rlht_ops.h` and the Python codec list `t1` and `t2` as sentinel-eligible:
+  `BREAD_INVALID_I16` while that thermocouple reads open (#65).
+
 - `BREAD_REFUSE_UNKNOWN_OP` is worded as "not a family or bread-common
   command", in `bread_refuse.h`, the Python codec and the README: a GET
   opcode sent as a command frame, instead of through SET_REPLY, is refused

@@ -56,6 +56,12 @@ the same step:
 
 ## Command Watchdog Trip
 
+What refreshes the watchdog is listed in `include/bread/bread_watchdog.h`. It
+counts reads as well as commands: GET_STATE, GET_CAPS, GET_WATCHDOG and the
+version read all refresh it, and so does any bare I2C read while one of them
+is staged. A second reader on the bus therefore keeps a slice's watchdog fed
+after the controller that armed it has stopped.
+
 What clears a latched watchdog trip (`tripped` in the `BREAD_OP_GET_WATCHDOG`
 reply) depends on the firmware, and the caps flags say which:
 

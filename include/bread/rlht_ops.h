@@ -91,6 +91,11 @@ CRUMBS_DEFINE_PAYLOAD(rlht_set_open_duty, 2, RLHT_SET_OPEN_DUTY_FIELDS)
  * [on1_ms:u16][on2_ms:u16][period1_ms:u16][period2_ms:u16][tc_select:u8]
  * tc_select packs tc1 in bits 0-1 and tc2 in bits 2-3.
  *
+ * Sentinel-eligible (may be BREAD_INVALID_I16):
+ *   t1/t2 -> BREAD_INVALID_I16 while that thermocouple reads open (NaN).
+ * Use BREAD_IS_VALID_I16() before consuming t1 or t2: read as a
+ * temperature, the sentinel is -3276.8 C.
+ *
  * Firmware that advertises RLHT_CAP_ESTOP_COUNT appends
  * [estop_count:u8] at RLHT_STATE_OFF_ESTOP_COUNT (20 bytes): hardware
  * e-stop presses since boot, wrapping at 255, so a controller sees a press

@@ -2,6 +2,8 @@
 
 ## [Unreleased]
 
+## [0.11.0] - 2026-10-24
+
 ### Added
 
 All additive and behind new capability bits; no existing opcode, payload or

@@ -52,7 +52,8 @@ capability flag (`DCMT_CAP_CMD_WATCHDOG`, `RLHT_CAP_CMD_WATCHDOG`):
 - `BREAD_OP_CLEAR_WATCHDOG_TRIP`: empty payload; clears `tripped` and nothing
   else, gated by `DCMT_CAP_CLEAR_WATCHDOG_TRIP` / `RLHT_CAP_CLEAR_WATCHDOG_TRIP`
 
-While armed, any valid inbound frame refreshes it; expiry drives the slice's
+While armed, bus and serial traffic refreshes it (the full list is in
+`include/bread/bread_watchdog.h`); expiry drives the slice's
 actuators to their safe state without touching estop. On firmware that
 advertises the `*_CAP_CLEAR_WATCHDOG_TRIP` flag the trip latches: only
 `BREAD_OP_CLEAR_WATCHDOG_TRIP`, a deliberate local operator command on the

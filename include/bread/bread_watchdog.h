@@ -15,10 +15,23 @@ extern "C"
  * Shared bus-liveness command-watchdog ops across BREADS-compatible Slices.
  *
  * Firmware boots disarmed; a controller arms it with SET_WATCHDOG. While
- * armed, any valid inbound frame or reply build refreshes it; expiry drives
+ * armed, bus and serial traffic refreshes it (listed below); expiry drives
  * the slice's actuators to their safe state (motors braked, heaters off)
  * without touching estop. Standalone/serial use never arms it and sees no
  * behavior change.
+ *
+ * What refreshes it, as Slice_DCMT and Slice_RLHT implement it:
+ *   - every frame CRUMBS hands to on_message: a command of the slice's type
+ *     or of type 0x00, refused, malformed and unknown-opcode ones included;
+ *   - every reply build for a registered query: the version read,
+ *     GET_STATE, GET_CAPS and GET_WATCHDOG. A bare I2C read re-runs the
+ *     last staged reply handler, so any reader on the bus, a bus scanner
+ *     included, refreshes it while one of those is staged, without sending
+ *     a frame;
+ *   - any non-empty line on the serial console.
+ * What does not: a frame that fails its CRC, a frame of another family's
+ * type, a frame under 4 bytes, a SET_REPLY on its own, a GET_ACK read, and
+ * a read of an opcode with no reply handler.
  *
  * Support is advertised per type via a capability flag (e.g.
  * DCMT_CAP_CMD_WATCHDOG); controllers must not send SET_WATCHDOG unless the

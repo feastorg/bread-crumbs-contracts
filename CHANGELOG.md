@@ -2,6 +2,14 @@
 
 ## [Unreleased]
 
+### Changed
+
+- Accepts CRUMBS 0.17: `library.json` now declares `>=0.16.0,<0.18.0`, so
+  a project that pins CRUMBS `^0.17.0`, for `crumbs_has_handler()`, can take
+  these contracts as well. 0.16 still resolves. `find_package(crumbs 0.16)`
+  already accepted 0.17. CI and the release build against the CRUMBS 0.17.0
+  release, and the README Quick Start pins CRUMBS `^0.17.0`.
+
 ## [0.11.0] - 2026-10-24
 
 ### Added

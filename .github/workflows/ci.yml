@@ -16,8 +16,8 @@ jobs:
     env:
       LINUX_WIRE_VERSION: "0.1.3"
       LINUX_WIRE_SHA256: "a7c3d1d8fcaf4f5aab50891bfc6ab13f3e3c204f0b62d22004d76afefef43e25"
-      CRUMBS_VERSION: "0.16.0"
-      CRUMBS_SHA256: "32c8cb3bf76d014550a21b2ddd43ab4adb364599e2cb3b20461182045c0d37c4"
+      CRUMBS_VERSION: "0.17.0"
+      CRUMBS_SHA256: "a98c450595659ff539f9bc583747c1ed147e113fedf07e12339ba8ad5327ee4f"
 
     steps:
       - uses: actions/checkout@v7
@@ -79,8 +79,8 @@ jobs:
     env:
       LINUX_WIRE_VERSION: "0.1.3"
       LINUX_WIRE_SHA256: "a7c3d1d8fcaf4f5aab50891bfc6ab13f3e3c204f0b62d22004d76afefef43e25"
-      CRUMBS_VERSION: "0.16.0"
-      CRUMBS_SHA256: "32c8cb3bf76d014550a21b2ddd43ab4adb364599e2cb3b20461182045c0d37c4"
+      CRUMBS_VERSION: "0.17.0"
+      CRUMBS_SHA256: "a98c450595659ff539f9bc583747c1ed147e113fedf07e12339ba8ad5327ee4f"
 
     steps:
       - uses: actions/checkout@v7

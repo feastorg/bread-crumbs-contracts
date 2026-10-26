@@ -2,6 +2,8 @@
 
 ## [Unreleased]
 
+## [0.11.1] - 2026-10-26
+
 ### Changed
 
 - Accepts CRUMBS 0.17: `library.json` now declares `>=0.16.0,<0.18.0`, so

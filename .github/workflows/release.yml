@@ -92,7 +92,7 @@ jobs:
             -DCMAKE_PREFIX_PATH="${{ github.workspace }}/_deps/linux-wire-install;${{ github.workspace }}/_deps/crumbs-install;${{ github.workspace }}/staging"
           cmake --build build/smoke/out --parallel
 
-      - uses: astral-sh/setup-uv@v10.3.0
+      - uses: astral-sh/setup-uv@v10.3.2
         with:
           python-version: "3.11"
 
@@ -175,7 +175,7 @@ jobs:
           name: python-dist
           path: dist/
 
-      - uses: pypa/gh-action-pypi-publish@v1.14.2
+      - uses: pypa/gh-action-pypi-publish@v1.14.3
 
   # ─── The published package, installed the way a consumer installs it:
   # no checkout, a fresh venv, the release pinned by version. ──
@@ -189,7 +189,7 @@ jobs:
       VERSION: ${{ needs.release.outputs.version }}
 
     steps:
-      - uses: astral-sh/setup-uv@v10.3.0
+      - uses: astral-sh/setup-uv@v10.3.2
         with:
           python-version: "3.11"
 

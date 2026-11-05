@@ -53,7 +53,11 @@ def test_every_parser_has_short_and_over_long_vectors() -> None:
         assert fixed + 1 in rcs, f"{name} has no over-long vector"
         if rcs[fixed + 1] != 0:
             rejects_trailing_byte.add(name)
-    assert rejects_trailing_byte == {"dcmt_parse_state_payload", "bread_watchdog_parse_payload"}
+    assert rejects_trailing_byte == {
+        "dcmt_parse_state_payload",
+        "dcmt_parse_inputs_payload",
+        "bread_watchdog_parse_payload",
+    }
 
 
 def test_every_payload_fits_a_frame() -> None:

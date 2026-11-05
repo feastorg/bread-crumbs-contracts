@@ -2,7 +2,8 @@
  * goes out through its controller wrapper, is decoded off the fake bus,
  * compared with the bytes the layout comment states and unpacked with the
  * unpack the Slice uses; the GET_STATE reply is packed with the pack the
- * Slice uses, served on the bus and read back through dcmt_get_state(). */
+ * Slice uses, served on the bus and read back through dcmt_get_state(), and
+ * the GET_INPUTS reply likewise through dcmt_get_inputs(). */
 #include <bread/dcmt_ops.h>
 
 #include "fake_bus.h"
@@ -241,6 +242,100 @@ static void test_state_length_rule(void)
     CHECK(dcmt_parse_state_payload(NULL, 20, &rx) == -1, "NULL payload is refused");
 }
 
+/* Every field distinct, each u16 with a distinct high and low byte, so a
+   swapped, shifted or byte-reversed field cannot pass. */
+static dcmt_inputs_t distinct_inputs(void)
+{
+    dcmt_inputs_t s;
+    s.valid = DCMT_INPUT_VALID_P1A | DCMT_INPUT_VALID_P1B | DCMT_INPUT_VALID_P2B;
+    s.bits = 10;
+    s.p1a = 0x0348; /* 840, about 4.1 V */
+    s.p1b = 0x03D7; /* 983, about 4.8 V */
+    s.p2a = 0;      /* not analog: 0, valid bit clear */
+    s.p2b = 0x0102;
+    return s;
+}
+
+static void test_get_inputs(void)
+{
+    static const uint8_t wire[10] = {
+        0x0B,       /* valid = P1A | P1B | P2B */
+        0x0A,       /* bits = 10 */
+        0x48, 0x03, /* p1a = 840 */
+        0xD7, 0x03, /* p1b = 983 */
+        0x00, 0x00, /* p2a = 0 */
+        0x02, 0x01, /* p2b = 258 */
+    };
+    dcmt_inputs_t tx = distinct_inputs();
+    dcmt_inputs_result_t rx;
+    crumbs_message_t reply;
+
+    fake_bus_bind();
+    crumbs_msg_init(&reply, DCMT_TYPE_ID, DCMT_OP_GET_INPUTS);
+    CHECK(dcmt_inputs_pack(&reply, &tx) == 0, "pack inputs");
+    CHECK(reply.data_len == DCMT_INPUTS_FIXED_LEN && memcmp(reply.data, wire, sizeof wire) == 0,
+          "inputs bytes, as the layout comment states");
+    fake_bus_serve(&reply);
+
+    memset(&rx, 0, sizeof rx);
+    CHECK(dcmt_get_inputs(&g_dev, &rx) == 0, "get inputs");
+    CHECK(g_bus.last_write.type_id == 0 && g_bus.last_write.opcode == CRUMBS_CMD_SET_REPLY &&
+              g_bus.last_write.data_len == 1 && g_bus.last_write.data[0] == DCMT_OP_GET_INPUTS,
+          "the query selected GET_INPUTS");
+    CHECK(rx.valid == (DCMT_INPUT_VALID_P1A | DCMT_INPUT_VALID_P1B | DCMT_INPUT_VALID_P2B), "valid");
+    CHECK((rx.valid & DCMT_INPUT_VALID_P2A) == 0, "P2A valid bit clear");
+    CHECK(rx.bits == 10, "bits");
+    CHECK(rx.p1a == 840, "p1a");
+    CHECK(rx.p1b == 983, "p1b");
+    CHECK(rx.p2a == 0, "p2a");
+    CHECK(rx.p2b == 0x0102, "p2b");
+
+    /* A reply carrying another opcode is not taken for GET_INPUTS. */
+    fake_bus_bind();
+    crumbs_msg_init(&reply, DCMT_TYPE_ID, DCMT_OP_GET_STATE);
+    CHECK(dcmt_inputs_pack(&reply, &tx) == 0, "pack inputs under GET_STATE");
+    fake_bus_serve(&reply);
+    CHECK(dcmt_get_inputs(&g_dev, &rx) == -1, "a reply with the wrong opcode is refused");
+}
+
+/* DCMT_INPUTS_OFF_* name the same bytes the field list packs. */
+static void test_inputs_offsets(void)
+{
+    dcmt_inputs_t tx = distinct_inputs();
+    crumbs_message_t m;
+    uint8_t u8v = 0;
+    uint16_t u16v = 0;
+
+    crumbs_msg_init(&m, DCMT_TYPE_ID, DCMT_OP_GET_INPUTS);
+    CHECK(dcmt_inputs_pack(&m, &tx) == 0, "pack inputs");
+    CHECK(crumbs_msg_read_u8(m.data, m.data_len, DCMT_INPUTS_OFF_VALID, &u8v) == 0 && u8v == tx.valid,
+          "OFF_VALID");
+    CHECK(crumbs_msg_read_u8(m.data, m.data_len, DCMT_INPUTS_OFF_BITS, &u8v) == 0 && u8v == tx.bits, "OFF_BITS");
+    CHECK(crumbs_msg_read_u16(m.data, m.data_len, DCMT_INPUTS_OFF_P1A, &u16v) == 0 && u16v == tx.p1a, "OFF_P1A");
+    CHECK(crumbs_msg_read_u16(m.data, m.data_len, DCMT_INPUTS_OFF_P1B, &u16v) == 0 && u16v == tx.p1b, "OFF_P1B");
+    CHECK(crumbs_msg_read_u16(m.data, m.data_len, DCMT_INPUTS_OFF_P2A, &u16v) == 0 && u16v == tx.p2a, "OFF_P2A");
+    CHECK(crumbs_msg_read_u16(m.data, m.data_len, DCMT_INPUTS_OFF_P2B, &u16v) == 0 && u16v == tx.p2b, "OFF_P2B");
+    CHECK(m.data_len == DCMT_INPUTS_FIXED_LEN, "FIXED_LEN");
+}
+
+static void test_inputs_length_rule(void)
+{
+    uint8_t buf[DCMT_INPUTS_FIXED_LEN + 1];
+    dcmt_inputs_result_t rx;
+
+    memset(buf, 0x11, sizeof buf);
+    memset(&rx, 0x5A, sizeof rx);
+    CHECK(dcmt_parse_inputs_payload(buf, 0, &rx) == -1, "empty is refused");
+    CHECK(dcmt_parse_inputs_payload(buf, DCMT_INPUTS_FIXED_LEN - 1, &rx) == -1, "one byte short is refused");
+    CHECK(dcmt_parse_inputs_payload(buf, DCMT_INPUTS_FIXED_LEN + 1, &rx) == -1,
+          "a trailing byte is refused (exact-length rule)");
+    CHECK(rx.valid == 0x5A, "a refused payload leaves out untouched");
+    CHECK(dcmt_parse_inputs_payload(buf, DCMT_INPUTS_FIXED_LEN, &rx) == 0, "exact length is accepted");
+    CHECK(rx.p2b == 0x1111, "p2b is the last two bytes");
+    CHECK(dcmt_parse_inputs_payload(NULL, DCMT_INPUTS_FIXED_LEN, &rx) == -1, "NULL payload is refused");
+    CHECK(dcmt_parse_inputs_payload(buf, DCMT_INPUTS_FIXED_LEN, NULL) == -1, "NULL out is refused");
+}
+
 int main(void)
 {
     test_set_open_loop();
@@ -253,6 +348,9 @@ int main(void)
     test_get_state();
     test_state_offsets();
     test_state_length_rule();
+    test_get_inputs();
+    test_inputs_offsets();
+    test_inputs_length_rule();
     if (g_failures)
     {
         printf("dcmt_roundtrip: %d failure(s)\n", g_failures);

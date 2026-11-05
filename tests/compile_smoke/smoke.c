@@ -51,6 +51,30 @@ int bread_contracts_smoke(void)
         ok += (dcmt_parse_state_payload(dcmt_payload, DCMT_STATE_FIXED_LEN - 1, &dcmt_state) == -1) ? 0 : 1;
         ok += (dcmt_parse_state_payload(NULL, DCMT_STATE_FIXED_LEN, &dcmt_state) == -1) ? 0 : 1;
     }
+    /* DCMT GET_INPUTS: an opcode of its own, a cap bit outside every other
+       DCMT flag, and the same exact-length parser rule as GET_STATE. */
+    {
+        uint8_t in_payload[DCMT_INPUTS_FIXED_LEN] = {0};
+        dcmt_inputs_result_t in;
+        ok += (DCMT_OP_GET_INPUTS == 0x81 && DCMT_OP_GET_INPUTS != DCMT_OP_GET_STATE) ? 0 : 1;
+        ok += (DCMT_CAP_INPUTS == ((uint32_t)1u << 12)) ? 0 : 1;
+        ok += ((DCMT_CAP_INPUTS &
+                (DCMT_CAP_OPEN_LOOP_CONTROL | DCMT_CAP_BRAKE_CONTROL | DCMT_CAP_CLOSED_LOOP_POSITION |
+                 DCMT_CAP_CLOSED_LOOP_SPEED | DCMT_CAP_PID_TUNING | DCMT_CAP_CMD_WATCHDOG |
+                 DCMT_CAP_CLEAR_WATCHDOG_TRIP | DCMT_CAP_ESTOP_HOLD | DCMT_CAP_REFUSES |
+                 DCMT_CAP_SETPOINT_LOOP | DCMT_CAP_WATCHDOG_LEASE | DCMT_CAP_FAULTS |
+                 DCMT_CAP_BASELINE_FLAGS)) == 0u)
+                  ? 0
+                  : 1;
+        in_payload[DCMT_INPUTS_OFF_VALID] = DCMT_INPUT_VALID_P1A;
+        in_payload[DCMT_INPUTS_OFF_BITS] = 10;
+        in_payload[DCMT_INPUTS_OFF_P1A] = 0x48; /* 840 LE */
+        in_payload[DCMT_INPUTS_OFF_P1A + 1] = 0x03;
+        ok += (dcmt_parse_inputs_payload(in_payload, DCMT_INPUTS_FIXED_LEN, &in) == 0) ? 0 : 1;
+        ok += (in.valid == DCMT_INPUT_VALID_P1A && in.bits == 10 && in.p1a == 840 && in.p2b == 0) ? 0 : 1;
+        ok += (dcmt_parse_inputs_payload(in_payload, DCMT_INPUTS_FIXED_LEN - 1, &in) == -1) ? 0 : 1;
+        ok += (dcmt_parse_inputs_payload(NULL, DCMT_INPUTS_FIXED_LEN, &in) == -1) ? 0 : 1;
+    }
     /* Shared watchdog ops: build_reply/parse round-trip; short and NULL
        payloads rejected; caps flags outside both baseline sets. */
     {

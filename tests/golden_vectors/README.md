@@ -22,10 +22,11 @@ hand-written append sequences before.
   payload, the C return code, and the parsed fields (`null` when the parser
   rejected the payload). Every parser has short, empty and one-byte-over-long
   records, so the file states each parser's length rule as the C applies it
-  today: `dcmt_parse_state_payload()` and `bread_watchdog_parse_payload()`
-  reject the trailing byte, the others accept it (`rlht_parse_state_payload()`
-  reads it as `estop_count`, and ignores a byte after that). Making this uniform would
-  change a vector here, so it is a decision of its own.
+  today: `dcmt_parse_state_payload()`, `dcmt_parse_inputs_payload()` and
+  `bread_watchdog_parse_payload()` reject the trailing byte, the others
+  accept it (`rlht_parse_state_payload()` reads it as `estop_count`, and
+  ignores a byte after that). Making this uniform would change a vector
+  here, so it is a decision of its own.
 
 ## Regenerating
 

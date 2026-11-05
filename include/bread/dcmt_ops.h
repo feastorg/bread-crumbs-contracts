@@ -34,7 +34,8 @@ extern "C"
     X(DCMT_OP_SET_MODE, 0x03)      /* dcmt_set_mode, 1 byte */           \
     X(DCMT_OP_SET_SETPOINT, 0x04)  /* dcmt_set_setpoint, 4 bytes */      \
     X(DCMT_OP_SET_PID, 0x05)       /* dcmt_set_pid, 13 bytes */          \
-    X(DCMT_OP_GET_STATE, 0x80)     /* reply dcmt_state, 20 bytes */
+    X(DCMT_OP_GET_STATE, 0x80)     /* reply dcmt_state, 20 bytes */      \
+    X(DCMT_OP_GET_INPUTS, 0x81)    /* reply dcmt_inputs, 10 bytes */
 CRUMBS_DEFINE_FAMILY(DCMT, 0x02, DCMT_OPS)
 BREAD_CHECK_FAMILY_OPS(DCMT, DCMT_OPS)
 
@@ -170,6 +171,51 @@ typedef dcmt_state_t dcmt_state_result_t;
 CRUMBS_STATIC_ASSERT(DCMT_STATE_FIXED_LEN == dcmt_state_wire_size,
                      "DCMT_STATE_FIXED_LEN must equal the dcmt_state field list");
 
+/*
+ * Fixed GET_INPUTS payload layout (10 bytes), behind DCMT_CAP_INPUTS:
+ * [valid:u8][bits:u8][p1a:u16][p1b:u16][p2a:u16][p2b:u16]
+ *
+ * Raw averaged ADC counts of the two signal pins ("a" and "b") of each
+ * encoder header: port 1 is motor 1's header (MCU A2/A3), port 2 motor 2's
+ * (A0/A1). Which header terminal reaches which pin on each board generation
+ * is in the Slice_DCMT repository's docs/hardware-revisions.md.
+ *
+ * valid has one bit per pin (DCMT_INPUT_VALID_*), set when the pin is built
+ * as an analog input and a first averaged value exists. A pin whose bit is
+ * clear reads 0. bits is the ADC resolution (10 on current boards): counts
+ * convert as V = counts * Vref / 2^bits, Vref being the board's 5 V supply.
+ * Query GET_INPUTS only when DCMT_CAP_INPUTS is advertised.
+ */
+#define DCMT_INPUTS_FIELDS(X)                        \
+    X(u8, valid) /* DCMT_INPUT_VALID_* bits */       \
+    X(u8, bits)  /* ADC resolution in bits */        \
+    X(u16, p1a)  /* port 1 pin a, averaged counts */ \
+    X(u16, p1b)                                      \
+    X(u16, p2a)                                      \
+    X(u16, p2b)
+CRUMBS_DEFINE_PAYLOAD(dcmt_inputs, 10, DCMT_INPUTS_FIELDS)
+
+/* The parser's result is the payload struct itself. */
+typedef dcmt_inputs_t dcmt_inputs_result_t;
+
+/* Byte offsets of the GET_INPUTS fields; tests/payload_roundtrip checks each
+   against dcmt_inputs_pack(). */
+#define DCMT_INPUTS_OFF_VALID 0
+#define DCMT_INPUTS_OFF_BITS 1
+#define DCMT_INPUTS_OFF_P1A 2
+#define DCMT_INPUTS_OFF_P1B 4
+#define DCMT_INPUTS_OFF_P2A 6
+#define DCMT_INPUTS_OFF_P2B 8
+#define DCMT_INPUTS_FIXED_LEN 10
+CRUMBS_STATIC_ASSERT(DCMT_INPUTS_FIXED_LEN == dcmt_inputs_wire_size,
+                     "DCMT_INPUTS_FIXED_LEN must equal the dcmt_inputs field list");
+
+/* GET_INPUTS valid bits: the pin is built as analog and has a first average. */
+#define DCMT_INPUT_VALID_P1A 0x01
+#define DCMT_INPUT_VALID_P1B 0x02
+#define DCMT_INPUT_VALID_P2A 0x04
+#define DCMT_INPUT_VALID_P2B 0x08
+
 #define DCMT_MODE_OPEN_LOOP 0x00
 #define DCMT_MODE_CLOSED_POSITION 0x01
 #define DCMT_MODE_CLOSED_SPEED 0x02
@@ -223,6 +269,10 @@ CRUMBS_STATIC_ASSERT(DCMT_STATE_FIXED_LEN == dcmt_state_wire_size,
    SET_MODE and any brake release are refused with BREAD_REFUSE_FAULT.
    Advertised only together with DCMT_CAP_REFUSES. */
 #define DCMT_CAP_FAULTS ((uint32_t)1u << 11)
+/* GET_INPUTS reports the averaged ADC counts of the encoder-header pins
+   built as analog inputs (see GET_INPUTS above). Without it, do not query
+   GET_INPUTS. */
+#define DCMT_CAP_INPUTS ((uint32_t)1u << 12)
 
 /* GET_FAULTS bits: the motor was driven but its encoder did not advance. */
 #define DCMT_FAULT_M1_STALL 0x01
@@ -400,6 +450,17 @@ static inline int dcmt_query_state(const crumbs_device_t *dev)
     return crumbs_controller_send(dev->ctx, dev->addr, &msg, dev->write_fn, dev->io);
 }
 
+/* Send only when DCMT_CAP_INPUTS is advertised. */
+static inline int dcmt_query_inputs(const crumbs_device_t *dev)
+{
+    crumbs_message_t msg;
+    if (dcmt_validate_write_device(dev) != 0)
+        return -1;
+    crumbs_msg_init(&msg, 0, CRUMBS_CMD_SET_REPLY);
+    crumbs_msg_add_u8(&msg, DCMT_OP_GET_INPUTS);
+    return crumbs_controller_send(dev->ctx, dev->addr, &msg, dev->write_fn, dev->io);
+}
+
 static inline int dcmt_query_version(const crumbs_device_t *dev)
 {
     crumbs_message_t msg;
@@ -512,6 +573,47 @@ static inline int dcmt_get_state(const crumbs_device_t *dev, dcmt_state_result_t
         return -1;
 
     return dcmt_parse_state_payload(reply.data, reply.data_len, out);
+}
+
+/*
+ * Parse a DCMT GET_INPUTS payload. The payload must be exactly
+ * DCMT_INPUTS_FIXED_LEN bytes; anything else returns -1 and leaves out
+ * untouched.
+ */
+static inline int dcmt_parse_inputs_payload(const uint8_t *data, uint8_t data_len, dcmt_inputs_result_t *out)
+{
+    if (!data || !out)
+        return -1;
+
+    if (data_len != DCMT_INPUTS_FIXED_LEN)
+        return -1;
+
+    return dcmt_inputs_unpack(data, data_len, out);
+}
+
+/* Query only when DCMT_CAP_INPUTS is advertised. */
+static inline int dcmt_get_inputs(const crumbs_device_t *dev, dcmt_inputs_result_t *out)
+{
+    crumbs_message_t reply;
+    int rc;
+
+    if (!out || dcmt_validate_query_device(dev) != 0)
+        return -1;
+
+    rc = dcmt_query_inputs(dev);
+    if (rc != 0)
+        return rc;
+
+    dev->delay_fn(CRUMBS_DEFAULT_QUERY_DELAY_US);
+
+    rc = crumbs_controller_read(dev->ctx, dev->addr, &reply, dev->read_fn, dev->io);
+    if (rc != 0)
+        return rc;
+
+    if (reply.type_id != DCMT_TYPE_ID || reply.opcode != DCMT_OP_GET_INPUTS)
+        return -1;
+
+    return dcmt_parse_inputs_payload(reply.data, reply.data_len, out);
 }
 
 static inline int dcmt_get_version(const crumbs_device_t *dev, dcmt_version_result_t *out)

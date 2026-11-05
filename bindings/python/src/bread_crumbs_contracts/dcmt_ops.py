@@ -25,6 +25,7 @@ __all__ = [
     "DCMT_CAP_CMD_WATCHDOG",
     "DCMT_CAP_ESTOP_HOLD",
     "DCMT_CAP_FAULTS",
+    "DCMT_CAP_INPUTS",
     "DCMT_CAP_LEVEL_1",
     "DCMT_CAP_LEVEL_2",
     "DCMT_CAP_LEVEL_3",
@@ -35,12 +36,24 @@ __all__ = [
     "DCMT_CAP_WATCHDOG_LEASE",
     "DCMT_FAULT_M1_STALL",
     "DCMT_FAULT_M2_STALL",
+    "DCMT_INPUTS_FIXED_LEN",
+    "DCMT_INPUTS_OFF_BITS",
+    "DCMT_INPUTS_OFF_P1A",
+    "DCMT_INPUTS_OFF_P1B",
+    "DCMT_INPUTS_OFF_P2A",
+    "DCMT_INPUTS_OFF_P2B",
+    "DCMT_INPUTS_OFF_VALID",
+    "DCMT_INPUT_VALID_P1A",
+    "DCMT_INPUT_VALID_P1B",
+    "DCMT_INPUT_VALID_P2A",
+    "DCMT_INPUT_VALID_P2B",
     "DCMT_MODE_CLOSED_POSITION",
     "DCMT_MODE_CLOSED_SPEED",
     "DCMT_MODE_OPEN_LOOP",
     "DCMT_MODULE_VER_MAJOR",
     "DCMT_MODULE_VER_MINOR",
     "DCMT_MODULE_VER_PATCH",
+    "DCMT_OP_GET_INPUTS",
     "DCMT_OP_GET_STATE",
     "DCMT_OP_SET_BRAKE",
     "DCMT_OP_SET_MODE",
@@ -67,10 +80,13 @@ __all__ = [
     "DCMT_STATE_OFF_SPD1",
     "DCMT_STATE_OFF_SPD2",
     "DCMT_TYPE_ID",
+    "DcmtInputsResult",
     "DcmtStateResult",
+    "dcmt_parse_inputs_payload",
     "dcmt_parse_state_payload",
     "dcmt_query_caps",
     "dcmt_query_faults",
+    "dcmt_query_inputs",
     "dcmt_query_state",
     "dcmt_query_version",
     "dcmt_query_watchdog",
@@ -101,6 +117,7 @@ DCMT_OP_SET_SETPOINT = 0x04
 DCMT_OP_SET_PID = 0x05
 
 DCMT_OP_GET_STATE = 0x80
+DCMT_OP_GET_INPUTS = 0x81
 
 #: SET_PID payload (13 bytes):
 #: ``[loop:u8][kp1:u16][ki1:u16][kd1:u16][kp2:u16][ki2:u16][kd2:u16]``, each
@@ -138,6 +155,28 @@ DCMT_STATE_OFF_BRAKES = 17
 DCMT_STATE_OFF_ESTOP = 18
 DCMT_STATE_OFF_ESTOP_COUNT = 19
 DCMT_STATE_FIXED_LEN = 20
+
+#: GET_INPUTS payload (10 bytes), behind ``DCMT_CAP_INPUTS``:
+#: ``[valid:u8][bits:u8][p1a:u16][p1b:u16][p2a:u16][p2b:u16]``.
+#: Raw averaged ADC counts of the two signal pins (a, b) of each encoder
+#: header: port 1 is motor 1's (MCU A2/A3), port 2 motor 2's (A0/A1); the
+#: terminal-to-pin mapping per board generation is in the Slice_DCMT
+#: repository's docs/hardware-revisions.md. ``valid`` has one
+#: ``DCMT_INPUT_VALID_*`` bit per pin, set when the pin is built as analog and
+#: has a first average; a pin whose bit is clear reads 0. ``bits`` is the ADC
+#: resolution: V = counts * Vref / 2**bits, Vref the board's 5 V supply.
+DCMT_INPUTS_OFF_VALID = 0
+DCMT_INPUTS_OFF_BITS = 1
+DCMT_INPUTS_OFF_P1A = 2
+DCMT_INPUTS_OFF_P1B = 4
+DCMT_INPUTS_OFF_P2A = 6
+DCMT_INPUTS_OFF_P2B = 8
+DCMT_INPUTS_FIXED_LEN = 10
+
+DCMT_INPUT_VALID_P1A = 0x01
+DCMT_INPUT_VALID_P1B = 0x02
+DCMT_INPUT_VALID_P2A = 0x04
+DCMT_INPUT_VALID_P2B = 0x08
 
 DCMT_MODE_OPEN_LOOP = 0x00
 DCMT_MODE_CLOSED_POSITION = 0x01
@@ -185,6 +224,9 @@ DCMT_CAP_WATCHDOG_LEASE = 1 << 10
 #: CLEAR_FAULTS clears them; while any is latched both motors are braked and
 #: motion commands are refused with ``BREAD_REFUSE_FAULT``.
 DCMT_CAP_FAULTS = 1 << 11
+#: GET_INPUTS reports the averaged ADC counts of the encoder-header pins
+#: built as analog inputs. Without it, do not query GET_INPUTS.
+DCMT_CAP_INPUTS = 1 << 12
 
 #: GET_FAULTS bits: the motor was driven but its encoder did not advance.
 DCMT_FAULT_M1_STALL = 0x01
@@ -194,6 +236,8 @@ DCMT_CAP_BASELINE_FLAGS = DCMT_CAP_OPEN_LOOP_CONTROL | DCMT_CAP_BRAKE_CONTROL
 
 _STATE = struct.Struct("<BhhhhhhhhBBB")
 assert _STATE.size == DCMT_STATE_FIXED_LEN
+_INPUTS = struct.Struct("<BBHHHH")
+assert _INPUTS.size == DCMT_INPUTS_FIXED_LEN
 
 _U8 = struct.Struct("<B")
 _U8_U8 = struct.Struct("<BB")
@@ -227,6 +271,21 @@ class DcmtStateResult:
     estop: int
     #: E-stop presses since boot, wrapping at 255.
     estop_count: int
+
+
+@dataclass(frozen=True, slots=True)
+class DcmtInputsResult:
+    """``dcmt_inputs_result_t``."""
+
+    #: ``DCMT_INPUT_VALID_*`` bits: the pin is built as analog and has a first average.
+    valid: int
+    #: ADC resolution in bits.
+    bits: int
+    #: Averaged ADC counts; 0 where the pin's valid bit is clear.
+    p1a: int
+    p1b: int
+    p2a: int
+    p2b: int
 
 
 def dcmt_send_set_open_loop(m1_pwm: int, m2_pwm: int) -> bytes:
@@ -320,6 +379,14 @@ def dcmt_query_state() -> bytes:
     return _U8.pack(DCMT_OP_GET_STATE)
 
 
+def dcmt_query_inputs() -> bytes:
+    """SET_REPLY payload requesting ``DCMT_OP_GET_INPUTS``.
+
+    Send only when ``DCMT_CAP_INPUTS`` is advertised.
+    """
+    return _U8.pack(DCMT_OP_GET_INPUTS)
+
+
 def dcmt_query_version() -> bytes:
     """SET_REPLY payload requesting the version reply."""
     return _U8.pack(BREAD_OP_GET_VERSION)
@@ -348,3 +415,13 @@ def dcmt_parse_state_payload(payload: bytes) -> DcmtStateResult:
     """
     require_exact_len("DCMT GET_STATE", payload, DCMT_STATE_FIXED_LEN)
     return DcmtStateResult(*_STATE.unpack_from(payload))
+
+
+def dcmt_parse_inputs_payload(payload: bytes) -> DcmtInputsResult:
+    """Parse a GET_INPUTS reply payload (``dcmt_parse_inputs_payload``).
+
+    Like the C parser, this rejects any length other than
+    ``DCMT_INPUTS_FIXED_LEN``, trailing bytes included.
+    """
+    require_exact_len("DCMT GET_INPUTS", payload, DCMT_INPUTS_FIXED_LEN)
+    return DcmtInputsResult(*_INPUTS.unpack_from(payload))

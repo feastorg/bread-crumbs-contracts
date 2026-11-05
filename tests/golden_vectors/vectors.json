@@ -94,6 +94,7 @@
     "DCMT_OP_SET_SETPOINT": 4,
     "DCMT_OP_SET_PID": 5,
     "DCMT_OP_GET_STATE": 128,
+    "DCMT_OP_GET_INPUTS": 129,
     "DCMT_PWM_MAX": 255,
     "DCMT_SET_PID_PAYLOAD_LEN": 13,
     "DCMT_SET_SETPOINT_PAYLOAD_LEN": 4,
@@ -115,6 +116,17 @@
     "DCMT_STATE_OFF_ESTOP": 18,
     "DCMT_STATE_OFF_ESTOP_COUNT": 19,
     "DCMT_STATE_FIXED_LEN": 20,
+    "DCMT_INPUTS_OFF_VALID": 0,
+    "DCMT_INPUTS_OFF_BITS": 1,
+    "DCMT_INPUTS_OFF_P1A": 2,
+    "DCMT_INPUTS_OFF_P1B": 4,
+    "DCMT_INPUTS_OFF_P2A": 6,
+    "DCMT_INPUTS_OFF_P2B": 8,
+    "DCMT_INPUTS_FIXED_LEN": 10,
+    "DCMT_INPUT_VALID_P1A": 1,
+    "DCMT_INPUT_VALID_P1B": 2,
+    "DCMT_INPUT_VALID_P2A": 4,
+    "DCMT_INPUT_VALID_P2B": 8,
     "DCMT_MODE_OPEN_LOOP": 0,
     "DCMT_MODE_CLOSED_POSITION": 1,
     "DCMT_MODE_CLOSED_SPEED": 2,
@@ -133,6 +145,7 @@
     "DCMT_CAP_SETPOINT_LOOP": 512,
     "DCMT_CAP_WATCHDOG_LEASE": 1024,
     "DCMT_CAP_FAULTS": 2048,
+    "DCMT_CAP_INPUTS": 4096,
     "DCMT_CAP_BASELINE_FLAGS": 3
   },
   "encode": [
@@ -783,6 +796,15 @@
       "opcode_name": "CRUMBS_CMD_SET_REPLY",
       "opcode": 254,
       "payload": "7a"
+    },
+    {
+      "name": "dcmt_query_inputs",
+      "args": {},
+      "type_id_name": "CRUMBS_TYPE_ID_ANY",
+      "type_id": 0,
+      "opcode_name": "CRUMBS_CMD_SET_REPLY",
+      "opcode": 254,
+      "payload": "81"
     }
   ],
   "parse": [
@@ -1148,6 +1170,121 @@
       "opcode_name": "DCMT_OP_GET_STATE",
       "opcode": 128,
       "payload": "0264009cfff4010cfed2042efb3c00c4ff000003aa",
+      "rc": -1,
+      "result": null
+    },
+    {
+      "name": "dcmt_parse_inputs_payload",
+      "type_id_name": "DCMT_TYPE_ID",
+      "type_id": 2,
+      "opcode_name": "DCMT_OP_GET_INPUTS",
+      "opcode": 129,
+      "payload": "030a4803d70300000000",
+      "rc": 0,
+      "result": {
+        "valid": 3,
+        "bits": 10,
+        "p1a": 840,
+        "p1b": 983,
+        "p2a": 0,
+        "p2b": 0
+      }
+    },
+    {
+      "name": "dcmt_parse_inputs_payload",
+      "type_id_name": "DCMT_TYPE_ID",
+      "type_id": 2,
+      "opcode_name": "DCMT_OP_GET_INPUTS",
+      "opcode": 129,
+      "payload": "0f0aff03000000020100",
+      "rc": 0,
+      "result": {
+        "valid": 15,
+        "bits": 10,
+        "p1a": 1023,
+        "p1b": 0,
+        "p2a": 512,
+        "p2b": 1
+      }
+    },
+    {
+      "name": "dcmt_parse_inputs_payload",
+      "type_id_name": "DCMT_TYPE_ID",
+      "type_id": 2,
+      "opcode_name": "DCMT_OP_GET_INPUTS",
+      "opcode": 129,
+      "payload": "000a0000000000000000",
+      "rc": 0,
+      "result": {
+        "valid": 0,
+        "bits": 10,
+        "p1a": 0,
+        "p1b": 0,
+        "p2a": 0,
+        "p2b": 0
+      }
+    },
+    {
+      "name": "dcmt_parse_inputs_payload",
+      "type_id_name": "DCMT_TYPE_ID",
+      "type_id": 2,
+      "opcode_name": "DCMT_OP_GET_INPUTS",
+      "opcode": 129,
+      "payload": "ffffffff0000ffff0000",
+      "rc": 0,
+      "result": {
+        "valid": 255,
+        "bits": 255,
+        "p1a": 65535,
+        "p1b": 0,
+        "p2a": 65535,
+        "p2b": 0
+      }
+    },
+    {
+      "name": "dcmt_parse_inputs_payload",
+      "type_id_name": "DCMT_TYPE_ID",
+      "type_id": 2,
+      "opcode_name": "DCMT_OP_GET_INPUTS",
+      "opcode": 129,
+      "payload": "81820201040306850807",
+      "rc": 0,
+      "result": {
+        "valid": 129,
+        "bits": 130,
+        "p1a": 258,
+        "p1b": 772,
+        "p2a": 34054,
+        "p2b": 1800
+      }
+    },
+    {
+      "name": "dcmt_parse_inputs_payload",
+      "type_id_name": "DCMT_TYPE_ID",
+      "type_id": 2,
+      "opcode_name": "DCMT_OP_GET_INPUTS",
+      "opcode": 129,
+      "payload": "818202010403068508",
+      "rc": -1,
+      "result": null
+    },
+    {
+      "name": "dcmt_parse_inputs_payload",
+      "type_id_name": "DCMT_TYPE_ID",
+      "type_id": 2,
+      "opcode_name": "DCMT_OP_GET_INPUTS",
+      "opcode": 129,
+      "payload": "",
+      "rc": -1,
+      "result": null
+    },
+    {
+      "name": "dcmt_parse_inputs_payload",
+      "type_id_name": "DCMT_TYPE_ID",
+      "type_id": 2,
+      "opcode_name": "DCMT_OP_GET_INPUTS",
+      "opcode": 129,
+      "payload": "040a00000000bc020000aa",
       "rc": -1,
       "result": null
     },

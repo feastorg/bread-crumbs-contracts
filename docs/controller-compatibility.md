@@ -119,6 +119,23 @@ Without the flag the 4-byte form writes both setpoints, so a position target
 becomes a speed request at the next switch to closed-loop speed. Set a speed
 target there only after entering speed mode.
 
+## DCMT Analog Inputs
+
+On firmware that advertises `DCMT_CAP_INPUTS`, query `DCMT_OP_GET_INPUTS`
+(0x81) through SET_REPLY, as GET_STATE. The 10-byte reply
+`[valid:u8][bits:u8][p1a:u16][p1b:u16][p2a:u16][p2b:u16]` carries the raw
+averaged ADC counts of the two signal pins of each encoder header: port 1
+is motor 1's header, port 2 motor 2's.
+
+- Read a pin only when its `DCMT_INPUT_VALID_*` bit is set: the pin is
+  built as analog and has a first average. A pin whose bit is clear reads 0.
+- Convert with `bits`, the ADC resolution: V = counts × Vref / 2^bits, Vref
+  being the board's 5 V supply.
+- The terminal-to-pin mapping for each board generation is in the
+  Slice_DCMT repository's `docs/hardware-revisions.md`.
+
+Without the flag, do not query GET_INPUTS.
+
 ## RLHT Wide Gains
 
 On firmware that advertises `RLHT_CAP_PID_X1000`, send gains with the 12-byte

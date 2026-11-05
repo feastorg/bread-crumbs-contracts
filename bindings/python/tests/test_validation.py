@@ -101,12 +101,17 @@ def test_every_encoder_field_has_a_range_case() -> None:
 PARSER_FIXED_LEN: dict[str, int] = {
     "rlht_parse_state_payload": bcc.RLHT_STATE_FIXED_LEN,
     "dcmt_parse_state_payload": bcc.DCMT_STATE_FIXED_LEN,
+    "dcmt_parse_inputs_payload": bcc.DCMT_INPUTS_FIXED_LEN,
     "bread_caps_parse_payload": bcc.BREAD_CAPS_V1_PAYLOAD_LEN,
     "bread_watchdog_parse_payload": bcc.BREAD_WATCHDOG_FIXED_LEN,
     "bread_faults_parse_payload": bcc.BREAD_FAULTS_FIXED_LEN,
     "bread_parse_version": bcc.BREAD_VERSION_PAYLOAD_LEN,
 }
-EXACT_LENGTH_PARSERS = {"dcmt_parse_state_payload", "bread_watchdog_parse_payload"}
+EXACT_LENGTH_PARSERS = {
+    "dcmt_parse_state_payload",
+    "dcmt_parse_inputs_payload",
+    "bread_watchdog_parse_payload",
+}
 # Optional bytes a prefix parser reads after its fixed length, when present.
 OPTIONAL_TAIL_LEN: dict[str, int] = {"rlht_parse_state_payload": 1}
 

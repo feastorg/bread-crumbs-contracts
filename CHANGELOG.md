@@ -2,6 +2,25 @@
 
 ## [Unreleased]
 
+## [0.12.0] - 2026-11-04
+
+### Added
+
+Additive and behind a new capability bit; no existing opcode, payload or
+reply length changes, `DCMT_MODULE_VER_MAJOR` stays 2, and every existing
+golden vector is unchanged.
+
+- DCMT `GET_INPUTS` (`DCMT_OP_GET_INPUTS`, 0x81), a SET_REPLY query like
+  GET_STATE, behind `DCMT_CAP_INPUTS` (bit 12). The 10-byte reply
+  `[valid:u8][bits:u8][p1a:u16][p1b:u16][p2a:u16][p2b:u16]` carries the raw
+  averaged ADC counts of each encoder header's two signal pins, a
+  `DCMT_INPUT_VALID_*` bit per pin and the ADC resolution
+  (feastorg/Slice_DCMT#106). C: `dcmt_inputs_t`, `DCMT_INPUTS_OFF_*`,
+  `DCMT_INPUTS_FIXED_LEN`, `dcmt_query_inputs()`,
+  `dcmt_parse_inputs_payload()` (exact length) and `dcmt_get_inputs()`.
+  Python: `dcmt_query_inputs()`, `dcmt_parse_inputs_payload()` and
+  `DcmtInputsResult`.
+
 ## [0.11.1] - 2026-10-26
 
 ### Changed

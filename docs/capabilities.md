@@ -106,6 +106,10 @@ Flags:
   `SET_OPEN_LOOP`, `SET_SETPOINT`, `SET_MODE` and any brake release are
   refused `BREAD_REFUSE_FAULT`. Advertised only together with
   `DCMT_CAP_REFUSES`
+- bit 12: `DCMT_CAP_INPUTS` — `DCMT_OP_GET_INPUTS` (0x81) reports the
+  averaged ADC counts of the encoder-header pins built as analog inputs,
+  with a valid bit per pin and the ADC resolution (`dcmt_ops.h`).
+  Controllers must not query `GET_INPUTS` unless this flag is advertised
 
 Baseline flag set:
 

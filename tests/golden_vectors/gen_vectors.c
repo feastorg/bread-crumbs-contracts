@@ -8,7 +8,7 @@
  * rejection of a short payload. Every parser also gets a payload one byte
  * over its fixed length, so the file records whether the C accepts
  * trailing bytes (rlht state, caps, version) or rejects them (dcmt state,
- * watchdog).
+ * dcmt inputs, watchdog).
  *
  * The output is deterministic: fixed key order, no timestamps, no
  * environment-dependent values. CI regenerates tests/golden_vectors/vectors.json
@@ -229,6 +229,7 @@ static void emit_constants(void)
     CONST(DCMT_OP_SET_SETPOINT);
     CONST(DCMT_OP_SET_PID);
     CONST(DCMT_OP_GET_STATE);
+    CONST(DCMT_OP_GET_INPUTS);
     CONST(DCMT_PWM_MAX);
     CONST(DCMT_SET_PID_PAYLOAD_LEN);
     CONST(DCMT_SET_SETPOINT_PAYLOAD_LEN);
@@ -250,6 +251,17 @@ static void emit_constants(void)
     CONST(DCMT_STATE_OFF_ESTOP);
     CONST(DCMT_STATE_OFF_ESTOP_COUNT);
     CONST(DCMT_STATE_FIXED_LEN);
+    CONST(DCMT_INPUTS_OFF_VALID);
+    CONST(DCMT_INPUTS_OFF_BITS);
+    CONST(DCMT_INPUTS_OFF_P1A);
+    CONST(DCMT_INPUTS_OFF_P1B);
+    CONST(DCMT_INPUTS_OFF_P2A);
+    CONST(DCMT_INPUTS_OFF_P2B);
+    CONST(DCMT_INPUTS_FIXED_LEN);
+    CONST(DCMT_INPUT_VALID_P1A);
+    CONST(DCMT_INPUT_VALID_P1B);
+    CONST(DCMT_INPUT_VALID_P2A);
+    CONST(DCMT_INPUT_VALID_P2B);
     CONST(DCMT_MODE_OPEN_LOOP);
     CONST(DCMT_MODE_CLOSED_POSITION);
     CONST(DCMT_MODE_CLOSED_SPEED);
@@ -268,6 +280,7 @@ static void emit_constants(void)
     CONST(DCMT_CAP_SETPOINT_LOOP);
     CONST(DCMT_CAP_WATCHDOG_LEASE);
     CONST(DCMT_CAP_FAULTS);
+    CONST(DCMT_CAP_INPUTS);
     CONST(DCMT_CAP_BASELINE_FLAGS);
 
     fprintf(g_out, "\n  },\n");
@@ -584,6 +597,7 @@ static void emit_encode_vectors(void)
     vec_query("dcmt_query_caps", dcmt_query_caps(&g_dev));
     vec_query("dcmt_query_watchdog", dcmt_query_watchdog(&g_dev));
     vec_query("dcmt_query_faults", dcmt_query_faults(&g_dev));
+    vec_query("dcmt_query_inputs", dcmt_query_inputs(&g_dev));
 
     array_end(0);
 }
@@ -720,6 +734,41 @@ static void dcmt_state_reply(crumbs_message_t *m, uint8_t mode,
         die("dcmt state reply overflow");
     if (m->data_len != DCMT_STATE_FIXED_LEN)
         die("dcmt state reply length");
+}
+
+static void vec_dcmt_parse_inputs(const crumbs_message_t *reply, uint8_t len)
+{
+    dcmt_inputs_result_t r;
+    int rc = dcmt_parse_inputs_payload(reply->data, len, &r);
+
+    parse_header("dcmt_parse_inputs_payload", "DCMT_TYPE_ID", DCMT_TYPE_ID,
+                 "DCMT_OP_GET_INPUTS", DCMT_OP_GET_INPUTS, reply->data, len, rc);
+    if (rc != 0)
+        return;
+
+    result_begin();
+    RESULT_FIELD("valid", r.valid, 0);
+    RESULT_FIELD("bits", r.bits, 0);
+    RESULT_FIELD("p1a", r.p1a, 0);
+    RESULT_FIELD("p1b", r.p1b, 0);
+    RESULT_FIELD("p2a", r.p2a, 0);
+    RESULT_FIELD("p2b", r.p2b, 1);
+    result_end();
+}
+
+static void dcmt_inputs_reply(crumbs_message_t *m, uint8_t valid, uint8_t bits,
+                              uint16_t p1a, uint16_t p1b, uint16_t p2a, uint16_t p2b)
+{
+    crumbs_msg_init(m, DCMT_TYPE_ID, DCMT_OP_GET_INPUTS);
+    crumbs_msg_add_u8(m, valid);
+    crumbs_msg_add_u8(m, bits);
+    crumbs_msg_add_u16(m, p1a);
+    crumbs_msg_add_u16(m, p1b);
+    crumbs_msg_add_u16(m, p2a);
+    if (crumbs_msg_add_u16(m, p2b) != 0)
+        die("dcmt inputs reply overflow");
+    if (m->data_len != DCMT_INPUTS_FIXED_LEN)
+        die("dcmt inputs reply length");
 }
 
 static void vec_bread_caps_parse(const char *type_id_name, const crumbs_message_t *reply, uint8_t len)
@@ -863,6 +912,29 @@ static void emit_parse_vectors(void)
     dcmt_state_reply(&m, DCMT_MODE_CLOSED_SPEED, 100, -100, 500, -500, 1234, -1234, 60, -60, 0, 0, 3);
     crumbs_msg_add_u8(&m, 0xAA);
     vec_dcmt_parse_state(&m, m.data_len);
+
+    /* DCMT GET_INPUTS: port 1 analog (the turbidity board, about 4.1 V and
+       4.8 V at 10 bits), all four pins, none built, extremes, short, empty. */
+    dcmt_inputs_reply(&m, DCMT_INPUT_VALID_P1A | DCMT_INPUT_VALID_P1B, 10, 840, 983, 0, 0);
+    vec_dcmt_parse_inputs(&m, m.data_len);
+    dcmt_inputs_reply(&m, DCMT_INPUT_VALID_P1A | DCMT_INPUT_VALID_P1B | DCMT_INPUT_VALID_P2A |
+                              DCMT_INPUT_VALID_P2B,
+                      10, 1023, 0, 512, 1);
+    vec_dcmt_parse_inputs(&m, m.data_len);
+    dcmt_inputs_reply(&m, 0, 10, 0, 0, 0, 0);
+    vec_dcmt_parse_inputs(&m, m.data_len);
+    dcmt_inputs_reply(&m, 0xFF, 0xFF, UINT16_MAX, 0, UINT16_MAX, 0);
+    vec_dcmt_parse_inputs(&m, m.data_len);
+    /* Both u8 fields above 0x7F and every field distinct, each u16 with a
+       high and a low byte: catches i8/i16 reads, swaps and byte order. */
+    dcmt_inputs_reply(&m, 0x81, 0x82, 0x0102, 0x0304, 0x8506, 0x0708);
+    vec_dcmt_parse_inputs(&m, m.data_len);
+    vec_dcmt_parse_inputs(&m, (uint8_t)(m.data_len - 1));
+    vec_dcmt_parse_inputs(&m, 0);
+    /* One trailing byte: dcmt_parse_inputs_payload() requires the exact length and rejects it. */
+    dcmt_inputs_reply(&m, DCMT_INPUT_VALID_P2A, 10, 0, 0, 700, 0);
+    crumbs_msg_add_u8(&m, 0xAA);
+    vec_dcmt_parse_inputs(&m, m.data_len);
 
     /* GET_CAPS: replies built by the header's own builder. */
     if (bread_caps_build_reply(&m, RLHT_TYPE_ID, RLHT_CAP_LEVEL_3,

@@ -30,6 +30,43 @@ If `GET_CAPS` fails:
 
 Generation mapping is informational only; runtime caps remain authoritative.
 
+## DCMT Module Major 3
+
+Contracts 0.13.0 set `DCMT_MODULE_VER_MAJOR` to 3. The DCMT speed loop now
+sets PWM directly, as feedforward plus a PI trim, so SET_PID's
+`DCMT_PID_LOOP_SPEED` gains are read in new units: `kp` is PWM per RPM of
+speed error, `ki` PWM per RPM-second, and `kd` is accepted and ignored. The
+13-byte layout is unchanged, and position gains keep their meaning.
+
+A controller built against 0.12.0 or earlier refuses major 3 firmware
+(`bread_check_module_compat()`), so speed gains tuned for the old loop
+are never sent to the new one. Move the controller's contracts pin and
+the DCMT firmware together, and retune the speed gains in the new units;
+RLHT boards are unaffected.
+
+## DCMT Speed Feedforward
+
+On firmware that advertises `DCMT_CAP_SPEED_FEEDFORWARD` (only together
+with `DCMT_CAP_CLOSED_LOOP_SPEED`), send `DCMT_OP_SET_SPEED_FF` (0x06):
+`[static1:u8][rpm_per_pwm1:u16][trim1:u8][static2:u8][rpm_per_pwm2:u16][trim2:u8]`,
+8 bytes, one set per motor.
+
+- `static` is PWM, 0 to `DCMT_PWM_MAX`.
+- `rpm_per_pwm` is output RPM per PWM step above `static`, x1000 (0 to
+  65.535); 0 means no speed term. It is in RPM so a controller can
+  calibrate from GET_STATE's speed.
+- `trim` bounds the PI trim, in PWM; `DCMT_SPEED_FF_TRIM_UNBOUNDED` (255)
+  means no bound.
+
+The values come from an open-loop PWM sweep of each motor and its load.
+Firmware applies them to the next speed computation; there is no readback.
+With `DCMT_CAP_REFUSES`, a wrong length is refused `BREAD_REFUSE_MALFORMED`
+and a build without the speed loop `BREAD_REFUSE_NOT_BUILT`, and nothing is
+stored. Until a controller sends SET_SPEED_FF, the speed loop is a plain PI
+on PWM.
+
+Without the flag, do not send SET_SPEED_FF.
+
 ## DCMT Module Major 2
 
 Contracts 0.7.0 changed the DCMT `SET_PID` layout, appended `estop_count`
@@ -233,7 +270,7 @@ go-ahead.
 `estop_count` in GET_STATE counts hardware e-stop presses since boot and
 wraps at 255. A controller compares it with the previous poll, modulo 256,
 to see presses that started and ended between polls; a reboot resets it
-to 0. DCMT major 2 always carries it. RLHT carries it when
+to 0. DCMT major 2 and later always carry it. RLHT carries it when
 `RLHT_CAP_ESTOP_COUNT` is advertised; without the flag, ignore the parsed
 value.
 

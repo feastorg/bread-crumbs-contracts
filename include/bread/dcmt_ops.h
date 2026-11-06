@@ -34,16 +34,22 @@ extern "C"
     X(DCMT_OP_SET_MODE, 0x03)      /* dcmt_set_mode, 1 byte */           \
     X(DCMT_OP_SET_SETPOINT, 0x04)  /* dcmt_set_setpoint, 4 bytes */      \
     X(DCMT_OP_SET_PID, 0x05)       /* dcmt_set_pid, 13 bytes */          \
+    X(DCMT_OP_SET_SPEED_FF, 0x06)  /* dcmt_set_speed_ff, 8 bytes */      \
     X(DCMT_OP_GET_STATE, 0x80)     /* reply dcmt_state, 20 bytes */      \
     X(DCMT_OP_GET_INPUTS, 0x81)    /* reply dcmt_inputs, 10 bytes */
 CRUMBS_DEFINE_FAMILY(DCMT, 0x02, DCMT_OPS)
 BREAD_CHECK_FAMILY_OPS(DCMT, DCMT_OPS)
 
-/* Major 2 since contracts 0.7.0: SET_PID changed layout (u16 gains x1000
+/* Major 3 since contracts 0.13.0: SET_PID's DCMT_PID_LOOP_SPEED gains keep
+   their layout but are read in new units (kp PWM per RPM of speed error, ki
+   PWM per RPM-second, kd ignored), as the speed loop now drives PWM
+   directly. Reinterpreting a payload is a breaking change
+   (docs/protocol-versioning.md), so a controller holding speed gains tuned
+   for the old loop refuses this firmware instead of sending them.
+   Major 2 since contracts 0.7.0: SET_PID changed layout (u16 gains x1000
    and a loop selector) and GET_STATE gained estop_count. A controller
-   built for one major refuses firmware reporting the other
-   (docs/protocol-versioning.md). */
-#define DCMT_MODULE_VER_MAJOR 2
+   built for one major refuses firmware reporting another. */
+#define DCMT_MODULE_VER_MAJOR 3
 #define DCMT_MODULE_VER_MINOR 0
 #define DCMT_MODULE_VER_PATCH 0
 
@@ -101,6 +107,13 @@ CRUMBS_STATIC_ASSERT(DCMT_SET_SETPOINT_LOOP_PAYLOAD_LEN == dcmt_set_setpoint_loo
  * length is not DCMT_SET_PID_PAYLOAD_LEN (dcmt_parse_set_pid_payload())
  * and a loop value it does not define, and applies nothing. Send
  * DCMT_PID_LOOP_SPEED only when DCMT_CAP_CLOSED_LOOP_SPEED is advertised.
+ *
+ * DCMT_PID_LOOP_SPEED gains, since module major 3: the speed loop sets PWM
+ * directly, as feedforward (SET_SPEED_FF) plus a PI trim. kp is PWM per RPM
+ * of speed error and ki PWM per RPM-second; kd is accepted and ignored.
+ * Under major 2 the speed gains were read in the old loop's units, which
+ * added a PID output in encoder counts to the position target.
+ *
  * Until contracts 0.7.0 (module major 1) the payload was six u8 gains x10.
  */
 #define DCMT_SET_PID_FIELDS(X) \
@@ -119,6 +132,64 @@ CRUMBS_STATIC_ASSERT(DCMT_SET_PID_PAYLOAD_LEN == dcmt_set_pid_wire_size,
 
 #define DCMT_PID_LOOP_POSITION 0x01
 #define DCMT_PID_LOOP_SPEED 0x02
+
+/*
+ * SET_SPEED_FF (8 bytes), behind DCMT_CAP_SPEED_FEEDFORWARD:
+ *   [static1:u8][rpm_per_pwm1:u16][trim1:u8][static2:u8][rpm_per_pwm2:u16][trim2:u8]
+ * The speed loop's per-motor feedforward; 1 is motor 1, 2 is motor 2:
+ *
+ *   pwm         = feedforward + pi
+ *   feedforward = sign(target) * static + target / rpm_per_pwm
+ *   pi          = kp * error + integral, bounded to +-trim
+ *
+ * kp and ki are SET_PID's DCMT_PID_LOOP_SPEED gains.
+ *
+ * - static is PWM, 0 to DCMT_PWM_MAX. The field is a u8 and DCMT_PWM_MAX is
+ *   255, so every value it can hold is in range: no static is refused for
+ *   its value while DCMT_PWM_MAX stays 255.
+ * - rpm_per_pwm is output RPM per PWM step above static, x1000 (0 to
+ *   65.535). 0 means no speed term.
+ * - trim is the bound on the PI trim, PWM, 0 to 255;
+ *   DCMT_SPEED_FF_TRIM_UNBOUNDED (255) means no bound.
+ *
+ * RPM, because a controller calibrates from GET_STATE's speed, which is in
+ * RPM; counts/s would need the CPR, which only the firmware knows. The
+ * values come from an open-loop PWM sweep of the motor and its load, so
+ * firmware has no useful defaults: until a controller sends SET_SPEED_FF
+ * the loop is a plain PI on PWM (the kp/ki of SET_PID's speed loop).
+ *
+ * Firmware stores the parameters per motor and applies them to the next
+ * speed computation. Firmware advertising DCMT_CAP_REFUSES refuses, storing
+ * nothing, a payload whose length is not DCMT_SET_SPEED_FF_PAYLOAD_LEN
+ * (dcmt_parse_set_speed_ff_payload()) with BREAD_REFUSE_MALFORMED, and, on a
+ * build without the speed loop, any SET_SPEED_FF with BREAD_REFUSE_NOT_BUILT.
+ * Send only when DCMT_CAP_SPEED_FEEDFORWARD is advertised. There is no
+ * readback, as there is none for SET_PID.
+ */
+#define DCMT_SET_SPEED_FF_FIELDS(X) \
+    X(u8, static1)                  \
+    X(u16, rpm_per_pwm1_x1000)      \
+    X(u8, trim1)                    \
+    X(u8, static2)                  \
+    X(u16, rpm_per_pwm2_x1000)      \
+    X(u8, trim2)
+CRUMBS_DEFINE_PAYLOAD(dcmt_set_speed_ff, 8, DCMT_SET_SPEED_FF_FIELDS)
+
+/* Byte offsets of the SET_SPEED_FF fields, for firmware that reads the
+   payload directly; tests/payload_roundtrip checks each against
+   dcmt_set_speed_ff_pack(). */
+#define DCMT_SET_SPEED_FF_OFF_STATIC1 0
+#define DCMT_SET_SPEED_FF_OFF_RPM_PER_PWM1 1
+#define DCMT_SET_SPEED_FF_OFF_TRIM1 3
+#define DCMT_SET_SPEED_FF_OFF_STATIC2 4
+#define DCMT_SET_SPEED_FF_OFF_RPM_PER_PWM2 5
+#define DCMT_SET_SPEED_FF_OFF_TRIM2 7
+#define DCMT_SET_SPEED_FF_PAYLOAD_LEN 8
+CRUMBS_STATIC_ASSERT(DCMT_SET_SPEED_FF_PAYLOAD_LEN == dcmt_set_speed_ff_wire_size,
+                     "DCMT_SET_SPEED_FF_PAYLOAD_LEN must equal the dcmt_set_speed_ff field list");
+
+/* SET_SPEED_FF trim: no bound on the PI trim. */
+#define DCMT_SPEED_FF_TRIM_UNBOUNDED 255
 
 // Fixed GET_STATE payload layout (20 bytes):
 // [mode:u8][m1_pwm:i16][m2_pwm:i16][sp1:i16][sp2:i16]
@@ -273,6 +344,10 @@ CRUMBS_STATIC_ASSERT(DCMT_INPUTS_FIXED_LEN == dcmt_inputs_wire_size,
    built as analog inputs (see GET_INPUTS above). Without it, do not query
    GET_INPUTS. */
 #define DCMT_CAP_INPUTS ((uint32_t)1u << 12)
+/* SET_SPEED_FF sets the speed loop's per-motor feedforward (see
+   SET_SPEED_FF above). Advertised only together with
+   DCMT_CAP_CLOSED_LOOP_SPEED. Without it, do not send SET_SPEED_FF. */
+#define DCMT_CAP_SPEED_FEEDFORWARD ((uint32_t)1u << 13)
 
 /* GET_FAULTS bits: the motor was driven but its encoder did not advance. */
 #define DCMT_FAULT_M1_STALL 0x01
@@ -391,6 +466,28 @@ static inline int dcmt_send_set_pid(const crumbs_device_t *dev, uint8_t loop,
     v.kd2_x1000 = kd2_x1000;
     crumbs_msg_init(&msg, DCMT_TYPE_ID, DCMT_OP_SET_PID);
     if (dcmt_set_pid_pack(&msg, &v) != 0)
+        return -1;
+    return crumbs_controller_send(dev->ctx, dev->addr, &msg, dev->write_fn, dev->io);
+}
+
+/* static and trim are PWM; each rpm_per_pwm is RPM per PWM step x1000.
+   Send only when DCMT_CAP_SPEED_FEEDFORWARD is advertised. */
+static inline int dcmt_send_set_speed_ff(const crumbs_device_t *dev,
+                                         uint8_t static1, uint16_t rpm_per_pwm1_x1000, uint8_t trim1,
+                                         uint8_t static2, uint16_t rpm_per_pwm2_x1000, uint8_t trim2)
+{
+    crumbs_message_t msg;
+    dcmt_set_speed_ff_t v;
+    if (dcmt_validate_write_device(dev) != 0)
+        return -1;
+    v.static1 = static1;
+    v.rpm_per_pwm1_x1000 = rpm_per_pwm1_x1000;
+    v.trim1 = trim1;
+    v.static2 = static2;
+    v.rpm_per_pwm2_x1000 = rpm_per_pwm2_x1000;
+    v.trim2 = trim2;
+    crumbs_msg_init(&msg, DCMT_TYPE_ID, DCMT_OP_SET_SPEED_FF);
+    if (dcmt_set_speed_ff_pack(&msg, &v) != 0)
         return -1;
     return crumbs_controller_send(dev->ctx, dev->addr, &msg, dev->write_fn, dev->io);
 }
@@ -531,6 +628,23 @@ static inline int dcmt_parse_set_pid_payload(const uint8_t *data, uint8_t data_l
     if (data_len != DCMT_SET_PID_PAYLOAD_LEN)
         return -1;
     return dcmt_set_pid_unpack(data, data_len, out);
+}
+
+/*
+ * Parse a SET_SPEED_FF payload, for the Slice. The payload must be exactly
+ * DCMT_SET_SPEED_FF_PAYLOAD_LEN bytes; anything else returns -1 and leaves
+ * out untouched, and firmware refuses it with BREAD_REFUSE_MALFORMED.
+ * dcmt_set_speed_ff_unpack() alone accepts trailing bytes, so firmware uses
+ * this instead.
+ */
+static inline int dcmt_parse_set_speed_ff_payload(const uint8_t *data, uint8_t data_len,
+                                                  dcmt_set_speed_ff_t *out)
+{
+    if (!data || !out)
+        return -1;
+    if (data_len != DCMT_SET_SPEED_FF_PAYLOAD_LEN)
+        return -1;
+    return dcmt_set_speed_ff_unpack(data, data_len, out);
 }
 
 /*

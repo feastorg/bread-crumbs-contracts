@@ -228,10 +228,19 @@ static void emit_constants(void)
     CONST(DCMT_OP_SET_MODE);
     CONST(DCMT_OP_SET_SETPOINT);
     CONST(DCMT_OP_SET_PID);
+    CONST(DCMT_OP_SET_SPEED_FF);
     CONST(DCMT_OP_GET_STATE);
     CONST(DCMT_OP_GET_INPUTS);
     CONST(DCMT_PWM_MAX);
     CONST(DCMT_SET_PID_PAYLOAD_LEN);
+    CONST(DCMT_SET_SPEED_FF_OFF_STATIC1);
+    CONST(DCMT_SET_SPEED_FF_OFF_RPM_PER_PWM1);
+    CONST(DCMT_SET_SPEED_FF_OFF_TRIM1);
+    CONST(DCMT_SET_SPEED_FF_OFF_STATIC2);
+    CONST(DCMT_SET_SPEED_FF_OFF_RPM_PER_PWM2);
+    CONST(DCMT_SET_SPEED_FF_OFF_TRIM2);
+    CONST(DCMT_SET_SPEED_FF_PAYLOAD_LEN);
+    CONST(DCMT_SPEED_FF_TRIM_UNBOUNDED);
     CONST(DCMT_SET_SETPOINT_PAYLOAD_LEN);
     CONST(DCMT_SET_SETPOINT_LOOP_PAYLOAD_LEN);
     CONST(DCMT_FAULT_M1_STALL);
@@ -281,6 +290,7 @@ static void emit_constants(void)
     CONST(DCMT_CAP_WATCHDOG_LEASE);
     CONST(DCMT_CAP_FAULTS);
     CONST(DCMT_CAP_INPUTS);
+    CONST(DCMT_CAP_SPEED_FEEDFORWARD);
     CONST(DCMT_CAP_BASELINE_FLAGS);
 
     fprintf(g_out, "\n  },\n");
@@ -457,6 +467,17 @@ static void vec_dcmt_send_set_pid(uint8_t loop, uint16_t kp1, uint16_t ki1, uint
                 dcmt_send_set_pid(&g_dev, loop, kp1, ki1, kd1, kp2, ki2, kd2));
 }
 
+static void vec_dcmt_send_set_speed_ff(uint8_t s1, uint16_t r1, uint8_t t1,
+                                       uint8_t s2, uint16_t r2, uint8_t t2)
+{
+    char a[224];
+    ARGS(a, "\"static1\": %u, \"rpm_per_pwm1_x1000\": %u, \"trim1\": %u, "
+            "\"static2\": %u, \"rpm_per_pwm2_x1000\": %u, \"trim2\": %u",
+         s1, r1, t1, s2, r2, t2);
+    emit_encode("dcmt_send_set_speed_ff", a, "DCMT_TYPE_ID", "DCMT_OP_SET_SPEED_FF",
+                dcmt_send_set_speed_ff(&g_dev, s1, r1, t1, s2, r2, t2));
+}
+
 static void vec_dcmt_send_set_watchdog(uint16_t timeout_ms)
 {
     char a[64];
@@ -576,6 +597,15 @@ static void emit_encode_vectors(void)
     vec_dcmt_send_set_pid(DCMT_PID_LOOP_POSITION, 0x0102, 0x0304, 0x0506, 0x0708, 0x090A, 0x0B0C);
     vec_dcmt_send_set_pid(0, 0, 0, 0, 0, 0, 0);
     vec_dcmt_send_set_pid(255, UINT16_MAX, UINT16_MAX, UINT16_MAX, UINT16_MAX, UINT16_MAX, UINT16_MAX);
+
+    /* An illustrative calibration (static 40, 0.85 RPM per PWM step, trim 60)
+       with motor 2 unbounded; every field distinct, the u8s above 0x7F and
+       each u16 with a high and a low byte (catches swaps and byte order);
+       zero; and extremes. */
+    vec_dcmt_send_set_speed_ff(40, 850, 60, 35, 920, DCMT_SPEED_FF_TRIM_UNBOUNDED);
+    vec_dcmt_send_set_speed_ff(0x81, 0x0203, 0x84, 0x85, 0x0607, 0x88);
+    vec_dcmt_send_set_speed_ff(0, 0, 0, 0, 0, 0);
+    vec_dcmt_send_set_speed_ff(DCMT_PWM_MAX, UINT16_MAX, UINT8_MAX, DCMT_PWM_MAX, UINT16_MAX, UINT8_MAX);
 
     vec_dcmt_send_set_watchdog(0);
     vec_dcmt_send_set_watchdog(5000);

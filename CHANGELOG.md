@@ -2,6 +2,37 @@
 
 ## [Unreleased]
 
+### Changed
+
+- **Breaking, DCMT:** `DCMT_MODULE_VER_MAJOR` is 3, because SET_PID's
+  `DCMT_PID_LOOP_SPEED` gains are read in new units (#75). The speed loop
+  now sets PWM directly, as feedforward plus a PI trim, instead of adding a
+  PID output in encoder counts to the position target: `kp` is PWM per RPM
+  of speed error, `ki` PWM per RPM-second, and `kd` is accepted and ignored.
+  The wire layout is unchanged (u16 x1000), so this reinterprets an
+  existing payload, which `docs/protocol-versioning.md` makes a module
+  major bump: a controller built for major 2 refuses major 3 firmware
+  instead of sending speed gains tuned for the old loop. Position gains,
+  every other opcode and every reply keep their meaning. The golden
+  vectors that change are the `DCMT_MODULE_VER_MAJOR` constant and the two
+  version-reply parse vectors built from it.
+
+### Added
+
+- DCMT `SET_SPEED_FF` (`DCMT_OP_SET_SPEED_FF`, 0x06), behind
+  `DCMT_CAP_SPEED_FEEDFORWARD` (bit 13), which is advertised only together
+  with `DCMT_CAP_CLOSED_LOOP_SPEED` (#75). The 8-byte payload
+  `[static1:u8][rpm_per_pwm1:u16][trim1:u8][static2:u8][rpm_per_pwm2:u16][trim2:u8]`
+  sets each motor's speed feedforward: `static` PWM (0 to `DCMT_PWM_MAX`),
+  output RPM per PWM step above it x1000 (0 means no speed term), and the
+  PI trim's bound in PWM (`DCMT_SPEED_FF_TRIM_UNBOUNDED`, 255, means no
+  bound). Firmware stores them per motor; with `DCMT_CAP_REFUSES` it
+  refuses a wrong length `MALFORMED` and a build without the speed loop
+  `NOT_BUILT`, storing nothing. No readback (#61). C: `dcmt_set_speed_ff_t`,
+  `DCMT_SET_SPEED_FF_OFF_*`, `DCMT_SET_SPEED_FF_PAYLOAD_LEN`,
+  `dcmt_send_set_speed_ff()` and `dcmt_parse_set_speed_ff_payload()` (exact
+  length). Python: `dcmt_send_set_speed_ff()`.
+
 ## [0.12.0] - 2026-11-04
 
 ### Added

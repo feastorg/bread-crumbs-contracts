@@ -27,8 +27,9 @@ int bread_contracts_smoke(void)
     ok += (DCMT_PWM_MAX == 255 && DCMT_PWM_MAX <= INT16_MAX) ? 0 : 1;
 
     ok += (bread_check_crumbs_compat((uint16_t)BREAD_MIN_CRUMBS_VERSION) == 0) ? 0 : 1;
-    /* DCMT major 2: the SET_PID layout changed in 0.7.0. */
-    ok += (DCMT_MODULE_VER_MAJOR == 2 && RLHT_MODULE_VER_MAJOR == 1) ? 0 : 1;
+    /* DCMT major 3: the SET_PID speed gains changed units in 0.13.0 (major 2:
+       the SET_PID layout changed in 0.7.0). */
+    ok += (DCMT_MODULE_VER_MAJOR == 3 && RLHT_MODULE_VER_MAJOR == 1) ? 0 : 1;
     ok += (bread_check_module_compat(1, 2, 1, 1) == 0) ? 0 : 1;
     ok += (bread_check_module_compat(2, 0, 1, 0) == -1) ? 0 : 1;
     /* The major alone decides: an older or newer minor is compatible. */
@@ -74,6 +75,34 @@ int bread_contracts_smoke(void)
         ok += (in.valid == DCMT_INPUT_VALID_P1A && in.bits == 10 && in.p1a == 840 && in.p2b == 0) ? 0 : 1;
         ok += (dcmt_parse_inputs_payload(in_payload, DCMT_INPUTS_FIXED_LEN - 1, &in) == -1) ? 0 : 1;
         ok += (dcmt_parse_inputs_payload(NULL, DCMT_INPUTS_FIXED_LEN, &in) == -1) ? 0 : 1;
+    }
+    /* DCMT SET_SPEED_FF: an opcode of its own, a cap bit outside every other
+       DCMT flag, and the exact-length parser rule of SET_PID. */
+    {
+        uint8_t ff_payload[DCMT_SET_SPEED_FF_PAYLOAD_LEN] = {0};
+        dcmt_set_speed_ff_t ff;
+        ok += (DCMT_OP_SET_SPEED_FF == 0x06 && DCMT_OP_SET_SPEED_FF != DCMT_OP_SET_PID) ? 0 : 1;
+        ok += (DCMT_CAP_SPEED_FEEDFORWARD == ((uint32_t)1u << 13)) ? 0 : 1;
+        ok += ((DCMT_CAP_SPEED_FEEDFORWARD &
+                (DCMT_CAP_OPEN_LOOP_CONTROL | DCMT_CAP_BRAKE_CONTROL | DCMT_CAP_CLOSED_LOOP_POSITION |
+                 DCMT_CAP_CLOSED_LOOP_SPEED | DCMT_CAP_PID_TUNING | DCMT_CAP_CMD_WATCHDOG |
+                 DCMT_CAP_CLEAR_WATCHDOG_TRIP | DCMT_CAP_ESTOP_HOLD | DCMT_CAP_REFUSES |
+                 DCMT_CAP_SETPOINT_LOOP | DCMT_CAP_WATCHDOG_LEASE | DCMT_CAP_FAULTS |
+                 DCMT_CAP_INPUTS | DCMT_CAP_BASELINE_FLAGS)) == 0u)
+                  ? 0
+                  : 1;
+        ok += (DCMT_SPEED_FF_TRIM_UNBOUNDED == UINT8_MAX) ? 0 : 1;
+        ff_payload[DCMT_SET_SPEED_FF_OFF_STATIC1] = 40;
+        ff_payload[DCMT_SET_SPEED_FF_OFF_RPM_PER_PWM1] = 0x52; /* 850 LE */
+        ff_payload[DCMT_SET_SPEED_FF_OFF_RPM_PER_PWM1 + 1] = 0x03;
+        ff_payload[DCMT_SET_SPEED_FF_OFF_TRIM2] = DCMT_SPEED_FF_TRIM_UNBOUNDED;
+        ok += (dcmt_parse_set_speed_ff_payload(ff_payload, DCMT_SET_SPEED_FF_PAYLOAD_LEN, &ff) == 0) ? 0 : 1;
+        ok += (ff.static1 == 40 && ff.rpm_per_pwm1_x1000 == 850 && ff.trim1 == 0 &&
+               ff.trim2 == DCMT_SPEED_FF_TRIM_UNBOUNDED)
+                  ? 0
+                  : 1;
+        ok += (dcmt_parse_set_speed_ff_payload(ff_payload, DCMT_SET_SPEED_FF_PAYLOAD_LEN - 1, &ff) == -1) ? 0 : 1;
+        ok += (dcmt_parse_set_speed_ff_payload(NULL, DCMT_SET_SPEED_FF_PAYLOAD_LEN, &ff) == -1) ? 0 : 1;
     }
     /* Shared watchdog ops: build_reply/parse round-trip; short and NULL
        payloads rejected; caps flags outside both baseline sets. */

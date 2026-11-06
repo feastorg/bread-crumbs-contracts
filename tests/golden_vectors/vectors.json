@@ -85,7 +85,7 @@
     "RLHT_STATE_OFF_ESTOP_COUNT": 19,
     "RLHT_CAP_BASELINE_FLAGS": 63,
     "DCMT_TYPE_ID": 2,
-    "DCMT_MODULE_VER_MAJOR": 2,
+    "DCMT_MODULE_VER_MAJOR": 3,
     "DCMT_MODULE_VER_MINOR": 0,
     "DCMT_MODULE_VER_PATCH": 0,
     "DCMT_OP_SET_OPEN_LOOP": 1,
@@ -93,10 +93,19 @@
     "DCMT_OP_SET_MODE": 3,
     "DCMT_OP_SET_SETPOINT": 4,
     "DCMT_OP_SET_PID": 5,
+    "DCMT_OP_SET_SPEED_FF": 6,
     "DCMT_OP_GET_STATE": 128,
     "DCMT_OP_GET_INPUTS": 129,
     "DCMT_PWM_MAX": 255,
     "DCMT_SET_PID_PAYLOAD_LEN": 13,
+    "DCMT_SET_SPEED_FF_OFF_STATIC1": 0,
+    "DCMT_SET_SPEED_FF_OFF_RPM_PER_PWM1": 1,
+    "DCMT_SET_SPEED_FF_OFF_TRIM1": 3,
+    "DCMT_SET_SPEED_FF_OFF_STATIC2": 4,
+    "DCMT_SET_SPEED_FF_OFF_RPM_PER_PWM2": 5,
+    "DCMT_SET_SPEED_FF_OFF_TRIM2": 7,
+    "DCMT_SET_SPEED_FF_PAYLOAD_LEN": 8,
+    "DCMT_SPEED_FF_TRIM_UNBOUNDED": 255,
     "DCMT_SET_SETPOINT_PAYLOAD_LEN": 4,
     "DCMT_SET_SETPOINT_LOOP_PAYLOAD_LEN": 5,
     "DCMT_FAULT_M1_STALL": 1,
@@ -146,6 +155,7 @@
     "DCMT_CAP_WATCHDOG_LEASE": 1024,
     "DCMT_CAP_FAULTS": 2048,
     "DCMT_CAP_INPUTS": 4096,
+    "DCMT_CAP_SPEED_FEEDFORWARD": 8192,
     "DCMT_CAP_BASELINE_FLAGS": 3
   },
   "encode": [
@@ -643,6 +653,42 @@
       "opcode_name": "DCMT_OP_SET_PID",
       "opcode": 5,
       "payload": "ffffffffffffffffffffffffff"
+    },
+    {
+      "name": "dcmt_send_set_speed_ff",
+      "args": {"static1": 40, "rpm_per_pwm1_x1000": 850, "trim1": 60, "static2": 35, "rpm_per_pwm2_x1000": 920, "trim2": 255},
+      "type_id_name": "DCMT_TYPE_ID",
+      "type_id": 2,
+      "opcode_name": "DCMT_OP_SET_SPEED_FF",
+      "opcode": 6,
+      "payload": "2852033c239803ff"
+    },
+    {
+      "name": "dcmt_send_set_speed_ff",
+      "args": {"static1": 129, "rpm_per_pwm1_x1000": 515, "trim1": 132, "static2": 133, "rpm_per_pwm2_x1000": 1543, "trim2": 136},
+      "type_id_name": "DCMT_TYPE_ID",
+      "type_id": 2,
+      "opcode_name": "DCMT_OP_SET_SPEED_FF",
+      "opcode": 6,
+      "payload": "8103028485070688"
+    },
+    {
+      "name": "dcmt_send_set_speed_ff",
+      "args": {"static1": 0, "rpm_per_pwm1_x1000": 0, "trim1": 0, "static2": 0, "rpm_per_pwm2_x1000": 0, "trim2": 0},
+      "type_id_name": "DCMT_TYPE_ID",
+      "type_id": 2,
+      "opcode_name": "DCMT_OP_SET_SPEED_FF",
+      "opcode": 6,
+      "payload": "0000000000000000"
+    },
+    {
+      "name": "dcmt_send_set_speed_ff",
+      "args": {"static1": 255, "rpm_per_pwm1_x1000": 65535, "trim1": 255, "static2": 255, "rpm_per_pwm2_x1000": 65535, "trim2": 255},
+      "type_id_name": "DCMT_TYPE_ID",
+      "type_id": 2,
+      "opcode_name": "DCMT_OP_SET_SPEED_FF",
+      "opcode": 6,
+      "payload": "ffffffffffffffff"
     },
     {
       "name": "dcmt_send_set_watchdog",
@@ -1645,11 +1691,11 @@
       "type_id": 2,
       "opcode_name": "BREAD_OP_GET_VERSION",
       "opcode": 0,
-      "payload": "b004020000",
+      "payload": "b004030000",
       "rc": 0,
       "result": {
         "crumbs_ver": 1200,
-        "mod_major": 2,
+        "mod_major": 3,
         "mod_minor": 0,
         "mod_patch": 0
       }
@@ -1710,11 +1756,11 @@
       "type_id": 2,
       "opcode_name": "BREAD_OP_GET_VERSION",
       "opcode": 0,
-      "payload": "7805020000aa",
+      "payload": "7805030000aa",
       "rc": 0,
       "result": {
         "crumbs_ver": 1400,
-        "mod_major": 2,
+        "mod_major": 3,
         "mod_minor": 0,
         "mod_patch": 0
       }

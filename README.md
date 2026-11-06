@@ -160,7 +160,7 @@ In your project `platformio.ini`:
 ```ini
 lib_deps =
   cameronbrooks11/CRUMBS @ ^0.17.0
-  cameronbrooks11/bread-crumbs-contracts @ ^0.12.0
+  cameronbrooks11/bread-crumbs-contracts @ ^0.13.0
 ```
 
 Controller source:

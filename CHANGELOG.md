@@ -2,6 +2,8 @@
 
 ## [Unreleased]
 
+## [0.13.0] - 2026-11-06
+
 ### Changed
 
 - **Breaking, DCMT:** `DCMT_MODULE_VER_MAJOR` is 3, because SET_PID's

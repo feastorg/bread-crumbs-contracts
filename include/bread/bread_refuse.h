@@ -23,9 +23,9 @@
 /* The payload does not decode: it is shorter than the opcode's wire size,
    or, for an opcode the contract fixes at exact lengths (DCMT SET_PID,
    CLEAR_WATCHDOG_TRIP, CLEAR_FAULTS, and behind their flags DCMT
-   SET_SETPOINT at 4 or 5 and RLHT SET_PID at 6 or 12), it is any other
-   length. A longer payload for any
-   other opcode is not malformed: CRUMBS *_unpack reads the fields from the
+   SET_SETPOINT at 4 or 5, DCMT SET_SPEED_FF at 8 and RLHT SET_PID at 6 or
+   12), it is any other length. A longer payload for any other opcode is
+   not malformed: CRUMBS *_unpack reads the fields from the
    front and ignores trailing bytes, which is how a layout is extended
    compatibly (crumbs_ops.h). */
 #define BREAD_REFUSE_MALFORMED 0x01

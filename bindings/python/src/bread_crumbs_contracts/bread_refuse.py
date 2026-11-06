@@ -19,8 +19,8 @@ __all__ = [
 #: The payload does not decode: shorter than the opcode's wire size, or, for
 #: an opcode the contract fixes at exact lengths (DCMT SET_PID,
 #: CLEAR_WATCHDOG_TRIP, CLEAR_FAULTS, and behind their flags DCMT SET_SETPOINT
-#: at 4 or 5 and RLHT SET_PID at 6 or 12), any other length. A longer payload for any other
-#: opcode is not malformed.
+#: at 4 or 5, DCMT SET_SPEED_FF at 8 and RLHT SET_PID at 6 or 12), any other
+#: length. A longer payload for any other opcode is not malformed.
 BREAD_REFUSE_MALFORMED = 0x01
 
 #: A command-watchdog trip is held, and the command could start motion or heat.

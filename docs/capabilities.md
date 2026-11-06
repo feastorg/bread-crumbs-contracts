@@ -110,6 +110,10 @@ Flags:
   averaged ADC counts of the encoder-header pins built as analog inputs,
   with a valid bit per pin and the ADC resolution (`dcmt_ops.h`).
   Controllers must not query `GET_INPUTS` unless this flag is advertised
+- bit 13: `DCMT_CAP_SPEED_FEEDFORWARD` — `DCMT_OP_SET_SPEED_FF` (0x06)
+  sets the speed loop's per-motor feedforward (`dcmt_ops.h`). Advertised
+  only together with `DCMT_CAP_CLOSED_LOOP_SPEED`. Controllers must not
+  send `SET_SPEED_FF` unless this flag is advertised
 
 Baseline flag set:
 

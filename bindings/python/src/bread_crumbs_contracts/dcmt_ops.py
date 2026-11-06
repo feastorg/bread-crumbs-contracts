@@ -33,6 +33,7 @@ __all__ = [
     "DCMT_CAP_PID_TUNING",
     "DCMT_CAP_REFUSES",
     "DCMT_CAP_SETPOINT_LOOP",
+    "DCMT_CAP_SPEED_FEEDFORWARD",
     "DCMT_CAP_WATCHDOG_LEASE",
     "DCMT_FAULT_M1_STALL",
     "DCMT_FAULT_M2_STALL",
@@ -60,12 +61,21 @@ __all__ = [
     "DCMT_OP_SET_OPEN_LOOP",
     "DCMT_OP_SET_PID",
     "DCMT_OP_SET_SETPOINT",
+    "DCMT_OP_SET_SPEED_FF",
     "DCMT_PID_LOOP_POSITION",
     "DCMT_PID_LOOP_SPEED",
     "DCMT_PWM_MAX",
     "DCMT_SET_PID_PAYLOAD_LEN",
     "DCMT_SET_SETPOINT_LOOP_PAYLOAD_LEN",
     "DCMT_SET_SETPOINT_PAYLOAD_LEN",
+    "DCMT_SET_SPEED_FF_OFF_RPM_PER_PWM1",
+    "DCMT_SET_SPEED_FF_OFF_RPM_PER_PWM2",
+    "DCMT_SET_SPEED_FF_OFF_STATIC1",
+    "DCMT_SET_SPEED_FF_OFF_STATIC2",
+    "DCMT_SET_SPEED_FF_OFF_TRIM1",
+    "DCMT_SET_SPEED_FF_OFF_TRIM2",
+    "DCMT_SET_SPEED_FF_PAYLOAD_LEN",
+    "DCMT_SPEED_FF_TRIM_UNBOUNDED",
     "DCMT_STATE_FIXED_LEN",
     "DCMT_STATE_OFF_BRAKES",
     "DCMT_STATE_OFF_ESTOP",
@@ -98,15 +108,19 @@ __all__ = [
     "dcmt_send_set_pid",
     "dcmt_send_set_setpoint",
     "dcmt_send_set_setpoint_loop",
+    "dcmt_send_set_speed_ff",
     "dcmt_send_set_watchdog",
     "dcmt_send_set_watchdog_lease",
 ]
 
 DCMT_TYPE_ID = 0x02
 
-#: Major 2 since contracts 0.7.0: SET_PID changed layout. A controller built
-#: for one major refuses firmware reporting the other.
-DCMT_MODULE_VER_MAJOR = 2
+#: Major 3 since contracts 0.13.0: SET_PID's ``DCMT_PID_LOOP_SPEED`` gains
+#: keep their layout but are read in new units (the speed loop drives PWM
+#: directly), a reinterpretation the versioning rule makes breaking. Major 2
+#: since contracts 0.7.0: SET_PID changed layout. A controller built for one
+#: major refuses firmware reporting another.
+DCMT_MODULE_VER_MAJOR = 3
 DCMT_MODULE_VER_MINOR = 0
 DCMT_MODULE_VER_PATCH = 0
 
@@ -115,6 +129,7 @@ DCMT_OP_SET_BRAKE = 0x02
 DCMT_OP_SET_MODE = 0x03
 DCMT_OP_SET_SETPOINT = 0x04
 DCMT_OP_SET_PID = 0x05
+DCMT_OP_SET_SPEED_FF = 0x06
 
 DCMT_OP_GET_STATE = 0x80
 DCMT_OP_GET_INPUTS = 0x81
@@ -122,10 +137,28 @@ DCMT_OP_GET_INPUTS = 0x81
 #: SET_PID payload (13 bytes):
 #: ``[loop:u8][kp1:u16][ki1:u16][kd1:u16][kp2:u16][ki2:u16][kd2:u16]``, each
 #: gain ``u16`` x1000 (0 to 65.535). ``loop`` is ``DCMT_PID_LOOP_*``. Firmware
-#: rejects any other length and a loop value it does not define.
+#: rejects any other length and a loop value it does not define. Since
+#: module major 3, ``DCMT_PID_LOOP_SPEED`` gains read kp as PWM per RPM of
+#: speed error and ki as PWM per RPM-second; kd is accepted and ignored.
 DCMT_SET_PID_PAYLOAD_LEN = 13
 DCMT_PID_LOOP_POSITION = 0x01
 DCMT_PID_LOOP_SPEED = 0x02
+
+#: SET_SPEED_FF payload (8 bytes), behind ``DCMT_CAP_SPEED_FEEDFORWARD``:
+#: ``[static1:u8][rpm_per_pwm1:u16][trim1:u8][static2:u8][rpm_per_pwm2:u16][trim2:u8]``.
+#: Per motor, the speed loop's feedforward: ``static`` is PWM (0 to
+#: ``DCMT_PWM_MAX``), ``rpm_per_pwm`` output RPM per PWM step above
+#: ``static`` x1000 (0 means no speed term), ``trim`` the bound on the PI
+#: trim in PWM (``DCMT_SPEED_FF_TRIM_UNBOUNDED`` means no bound). Firmware
+#: rejects any other length.
+DCMT_SET_SPEED_FF_OFF_STATIC1 = 0
+DCMT_SET_SPEED_FF_OFF_RPM_PER_PWM1 = 1
+DCMT_SET_SPEED_FF_OFF_TRIM1 = 3
+DCMT_SET_SPEED_FF_OFF_STATIC2 = 4
+DCMT_SET_SPEED_FF_OFF_RPM_PER_PWM2 = 5
+DCMT_SET_SPEED_FF_OFF_TRIM2 = 7
+DCMT_SET_SPEED_FF_PAYLOAD_LEN = 8
+DCMT_SPEED_FF_TRIM_UNBOUNDED = 255
 
 #: SET_SETPOINT: ``[target1:i16][target2:i16]``, or, on firmware advertising
 #: ``DCMT_CAP_SETPOINT_LOOP``, ``[loop:u8][target1:i16][target2:i16]``. The
@@ -227,6 +260,10 @@ DCMT_CAP_FAULTS = 1 << 11
 #: GET_INPUTS reports the averaged ADC counts of the encoder-header pins
 #: built as analog inputs. Without it, do not query GET_INPUTS.
 DCMT_CAP_INPUTS = 1 << 12
+#: SET_SPEED_FF sets the speed loop's per-motor feedforward. Advertised only
+#: together with ``DCMT_CAP_CLOSED_LOOP_SPEED``. Without it, do not send
+#: SET_SPEED_FF.
+DCMT_CAP_SPEED_FEEDFORWARD = 1 << 13
 
 #: GET_FAULTS bits: the motor was driven but its encoder did not advance.
 DCMT_FAULT_M1_STALL = 0x01
@@ -245,6 +282,8 @@ _U16 = struct.Struct("<H")
 _I16_I16 = struct.Struct("<hh")
 _PID = struct.Struct("<BHHHHHH")
 assert _PID.size == DCMT_SET_PID_PAYLOAD_LEN
+_SPEED_FF = struct.Struct("<BHBBHB")
+assert _SPEED_FF.size == DCMT_SET_SPEED_FF_PAYLOAD_LEN
 _U16_U8 = struct.Struct("<HB")
 _SETPOINT_LOOP = struct.Struct("<Bhh")
 assert _SETPOINT_LOOP.size == DCMT_SET_SETPOINT_LOOP_PAYLOAD_LEN
@@ -340,6 +379,30 @@ def dcmt_send_set_pid(
         u16("kp2_x1000", kp2_x1000),
         u16("ki2_x1000", ki2_x1000),
         u16("kd2_x1000", kd2_x1000),
+    )
+
+
+def dcmt_send_set_speed_ff(
+    static1: int,
+    rpm_per_pwm1_x1000: int,
+    trim1: int,
+    static2: int,
+    rpm_per_pwm2_x1000: int,
+    trim2: int,
+) -> bytes:
+    """``DCMT_OP_SET_SPEED_FF`` payload: per motor ``static`` (PWM), then
+    ``rpm_per_pwm`` (RPM per PWM step, a thousand times the value), then
+    ``trim`` (PWM; ``DCMT_SPEED_FF_TRIM_UNBOUNDED`` for no bound).
+
+    Send only when ``DCMT_CAP_SPEED_FEEDFORWARD`` is advertised.
+    """
+    return _SPEED_FF.pack(
+        u8("static1", static1),
+        u16("rpm_per_pwm1_x1000", rpm_per_pwm1_x1000),
+        u8("trim1", trim1),
+        u8("static2", static2),
+        u16("rpm_per_pwm2_x1000", rpm_per_pwm2_x1000),
+        u8("trim2", trim2),
     )
 
 

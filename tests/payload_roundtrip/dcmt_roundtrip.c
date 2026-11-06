@@ -118,6 +118,95 @@ static void test_set_pid_length_rule(void)
     CHECK(dcmt_parse_set_pid_payload(buf, DCMT_SET_PID_PAYLOAD_LEN, NULL) == -1, "NULL out is refused");
 }
 
+static void test_set_speed_ff(void)
+{
+    /* [static1:u8][rpm_per_pwm1:u16 LE][trim1:u8][static2:u8][rpm_per_pwm2:u16 LE][trim2:u8]:
+       every field distinct, the u8s above 0x7F, each u16 with a distinct
+       high and low byte, so a swapped, shifted or byte-reversed field cannot
+       pass. */
+    static const uint8_t wire[] = {
+        0x81,       /* static1 = 129 */
+        0x03, 0x02, /* rpm_per_pwm1 = 0x0203 */
+        0x84,       /* trim1 = 132 */
+        0x85,       /* static2 = 133 */
+        0x07, 0x06, /* rpm_per_pwm2 = 0x0607 */
+        DCMT_SPEED_FF_TRIM_UNBOUNDED, /* trim2 */
+    };
+    dcmt_set_speed_ff_t rx;
+
+    fake_bus_bind();
+    CHECK(dcmt_send_set_speed_ff(&g_dev, 0x81, 0x0203, 0x84, 0x85, 0x0607, DCMT_SPEED_FF_TRIM_UNBOUNDED) == 0,
+          "send set_speed_ff");
+    CHECK(sizeof wire == DCMT_SET_SPEED_FF_PAYLOAD_LEN,
+          "the layout comment states DCMT_SET_SPEED_FF_PAYLOAD_LEN bytes");
+    CHECK(fake_bus_sent(DCMT_TYPE_ID, DCMT_OP_SET_SPEED_FF, wire, sizeof wire), "set_speed_ff bytes");
+    memset(&rx, 0, sizeof rx);
+    CHECK(dcmt_parse_set_speed_ff_payload(g_bus.last_write.data, g_bus.last_write.data_len, &rx) == 0,
+          "parse set_speed_ff");
+    CHECK(rx.static1 == 0x81 && rx.rpm_per_pwm1_x1000 == 0x0203 && rx.trim1 == 0x84, "motor 1 feedforward");
+    CHECK(rx.static2 == 0x85 && rx.rpm_per_pwm2_x1000 == 0x0607 && rx.trim2 == DCMT_SPEED_FF_TRIM_UNBOUNDED,
+          "motor 2 feedforward");
+}
+
+/* DCMT_SET_SPEED_FF_OFF_* name the same bytes the field list packs. */
+static void test_set_speed_ff_offsets(void)
+{
+    dcmt_set_speed_ff_t tx;
+    crumbs_message_t m;
+    uint8_t u8v = 0;
+    uint16_t u16v = 0;
+
+    tx.static1 = 0x81;
+    tx.rpm_per_pwm1_x1000 = 0x0203;
+    tx.trim1 = 0x84;
+    tx.static2 = 0x85;
+    tx.rpm_per_pwm2_x1000 = 0x0607;
+    tx.trim2 = 0x88;
+    crumbs_msg_init(&m, DCMT_TYPE_ID, DCMT_OP_SET_SPEED_FF);
+    CHECK(dcmt_set_speed_ff_pack(&m, &tx) == 0, "pack set_speed_ff");
+    CHECK(crumbs_msg_read_u8(m.data, m.data_len, DCMT_SET_SPEED_FF_OFF_STATIC1, &u8v) == 0 && u8v == tx.static1,
+          "OFF_STATIC1");
+    CHECK(crumbs_msg_read_u16(m.data, m.data_len, DCMT_SET_SPEED_FF_OFF_RPM_PER_PWM1, &u16v) == 0 &&
+              u16v == tx.rpm_per_pwm1_x1000,
+          "OFF_RPM_PER_PWM1");
+    CHECK(crumbs_msg_read_u8(m.data, m.data_len, DCMT_SET_SPEED_FF_OFF_TRIM1, &u8v) == 0 && u8v == tx.trim1,
+          "OFF_TRIM1");
+    CHECK(crumbs_msg_read_u8(m.data, m.data_len, DCMT_SET_SPEED_FF_OFF_STATIC2, &u8v) == 0 && u8v == tx.static2,
+          "OFF_STATIC2");
+    CHECK(crumbs_msg_read_u16(m.data, m.data_len, DCMT_SET_SPEED_FF_OFF_RPM_PER_PWM2, &u16v) == 0 &&
+              u16v == tx.rpm_per_pwm2_x1000,
+          "OFF_RPM_PER_PWM2");
+    CHECK(crumbs_msg_read_u8(m.data, m.data_len, DCMT_SET_SPEED_FF_OFF_TRIM2, &u8v) == 0 && u8v == tx.trim2,
+          "OFF_TRIM2");
+    CHECK(m.data_len == DCMT_SET_SPEED_FF_PAYLOAD_LEN, "PAYLOAD_LEN");
+}
+
+/* Firmware refuses a SET_SPEED_FF payload of any other length with
+   BREAD_REFUSE_MALFORMED and stores nothing. */
+static void test_set_speed_ff_length_rule(void)
+{
+    uint8_t buf[DCMT_SET_SPEED_FF_PAYLOAD_LEN + 1];
+    dcmt_set_speed_ff_t rx;
+
+    memset(buf, 0x11, sizeof buf);
+    memset(&rx, 0x5A, sizeof rx);
+    CHECK(dcmt_parse_set_speed_ff_payload(buf, 0, &rx) == -1, "set_speed_ff: empty is refused");
+    CHECK(dcmt_parse_set_speed_ff_payload(buf, 4, &rx) == -1, "set_speed_ff: one motor's 4 bytes are refused");
+    CHECK(dcmt_parse_set_speed_ff_payload(buf, DCMT_SET_SPEED_FF_PAYLOAD_LEN - 1, &rx) == -1,
+          "set_speed_ff: one byte short is refused");
+    CHECK(dcmt_parse_set_speed_ff_payload(buf, DCMT_SET_SPEED_FF_PAYLOAD_LEN + 1, &rx) == -1,
+          "set_speed_ff: a trailing byte is refused (exact-length rule)");
+    CHECK(rx.static1 == 0x5A && rx.trim2 == 0x5A, "set_speed_ff: a refused payload leaves out untouched");
+    CHECK(dcmt_parse_set_speed_ff_payload(buf, DCMT_SET_SPEED_FF_PAYLOAD_LEN, &rx) == 0,
+          "set_speed_ff: exact length is accepted");
+    CHECK(rx.static1 == 0x11 && rx.rpm_per_pwm2_x1000 == 0x1111 && rx.trim2 == 0x11,
+          "set_speed_ff: exact length parses");
+    CHECK(dcmt_parse_set_speed_ff_payload(NULL, DCMT_SET_SPEED_FF_PAYLOAD_LEN, &rx) == -1,
+          "set_speed_ff: NULL payload is refused");
+    CHECK(dcmt_parse_set_speed_ff_payload(buf, DCMT_SET_SPEED_FF_PAYLOAD_LEN, NULL) == -1,
+          "set_speed_ff: NULL out is refused");
+}
+
 /* A state with every field distinct, so a swapped or shifted field cannot
    pass, and every i16 negative, so an unsigned member cannot either. */
 static dcmt_state_t distinct_state(void)
@@ -344,6 +433,9 @@ int main(void)
     test_set_setpoint();
     test_set_pid();
     test_set_pid_length_rule();
+    test_set_speed_ff();
+    test_set_speed_ff_offsets();
+    test_set_speed_ff_length_rule();
     test_clear_watchdog_trip();
     test_get_state();
     test_state_offsets();

@@ -88,6 +88,14 @@ against `^0.7.0` (a `^0.6.0` pin does not resolve 0.7.0). Until both
 sides move, the controller refuses the board. RLHT stays major 1, so
 RLHT boards need no reflash; RLHT's `SET_PID` is unchanged.
 
+DCMT module major 3 (contracts 0.13.0) keeps that layout but reads the
+`DCMT_PID_LOOP_SPEED` gains in new units, because the speed loop now sets
+PWM directly: `kp` is PWM per RPM of speed error, `ki` PWM per RPM-second,
+and `kd` is accepted and ignored. Each motor's speed feedforward is set
+with `DCMT_OP_SET_SPEED_FF`, behind `DCMT_CAP_SPEED_FEEDFORWARD`. A
+controller built for major 2 refuses major 3 firmware; see
+`docs/controller-compatibility.md`.
+
 ## E-stop Count
 
 Both state replies carry `estop_count`, a u8 count of hardware e-stop
@@ -96,7 +104,7 @@ press and release between two polls leaves `estop` clear but moves the
 count, so a controller sees a press it missed.
 
 - DCMT: the last byte of the 20-byte GET_STATE reply
-  (`DCMT_STATE_OFF_ESTOP_COUNT`), part of the module major 2 layout.
+  (`DCMT_STATE_OFF_ESTOP_COUNT`), part of the layout since module major 2.
 - RLHT: appended after the 19-byte reply (`RLHT_STATE_OFF_ESTOP_COUNT`) by
   firmware that advertises `RLHT_CAP_ESTOP_COUNT`. The RLHT major stays 1:
   `rlht_parse_state_payload()` already ignored trailing bytes, so older
@@ -112,7 +120,7 @@ families share:
 
 | Reason | Name | Meaning |
 | --- | --- | --- |
-| `0x01` | `BREAD_REFUSE_MALFORMED` | the payload does not decode: shorter than the opcode's wire size, or not one of the exact lengths DCMT SET_PID, CLEAR_WATCHDOG_TRIP and CLEAR_FAULTS fix, and, behind their flags, DCMT SET_SETPOINT (4 or 5) and RLHT SET_PID (6 or 12); a longer payload for any other opcode is accepted |
+| `0x01` | `BREAD_REFUSE_MALFORMED` | the payload does not decode: shorter than the opcode's wire size, or not one of the exact lengths DCMT SET_PID, CLEAR_WATCHDOG_TRIP and CLEAR_FAULTS fix, and, behind their flags, DCMT SET_SETPOINT (4 or 5), DCMT SET_SPEED_FF (8) and RLHT SET_PID (6 or 12); a longer payload for any other opcode is accepted |
 | `0x02` | `BREAD_REFUSE_WATCHDOG_TRIP` | a watchdog trip is held |
 | `0x03` | `BREAD_REFUSE_ESTOP` | a hardware e-stop is held |
 | `0x04` | `BREAD_REFUSE_UNDEFINED_VALUE` | a field holds a value the contract does not define |

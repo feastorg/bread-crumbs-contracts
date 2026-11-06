@@ -22,6 +22,9 @@ DCMT_PID_OK = {"loop": 1, **dict.fromkeys(DCMT_PID_GAINS, 0)}
 RLHT_PID_X1000_OK: dict[str, int] = dict.fromkeys(DCMT_PID_GAINS, 0)
 LEASE_OK = {"timeout_ms": 0, "flags": 0}
 SETPOINT_LOOP_OK = {"loop": 1, "target1": 0, "target2": 0}
+SPEED_FF_U8 = ("static1", "trim1", "static2", "trim2")
+SPEED_FF_U16 = ("rpm_per_pwm1_x1000", "rpm_per_pwm2_x1000")
+SPEED_FF_OK: dict[str, int] = dict.fromkeys(SPEED_FF_U8 + SPEED_FF_U16, 0)
 
 # (encoder, in-range kwargs, field under test, bounds)
 RANGE_CASES: list[tuple[Callable[..., bytes], dict[str, int], str, tuple[int, int]]] = [
@@ -48,6 +51,8 @@ RANGE_CASES: list[tuple[Callable[..., bytes], dict[str, int], str, tuple[int, in
     (bcc.dcmt_send_set_setpoint, {"target1": 0, "target2": 0}, "target2", I16),
     (bcc.dcmt_send_set_pid, DCMT_PID_OK, "loop", U8),
     *[(bcc.dcmt_send_set_pid, DCMT_PID_OK, field, U16) for field in DCMT_PID_GAINS],
+    *[(bcc.dcmt_send_set_speed_ff, SPEED_FF_OK, field, U8) for field in SPEED_FF_U8],
+    *[(bcc.dcmt_send_set_speed_ff, SPEED_FF_OK, field, U16) for field in SPEED_FF_U16],
     (bcc.dcmt_send_set_watchdog, {"timeout_ms": 0}, "timeout_ms", U16),
     (bcc.dcmt_send_set_setpoint_loop, SETPOINT_LOOP_OK, "loop", U8),
     (bcc.dcmt_send_set_setpoint_loop, SETPOINT_LOOP_OK, "target1", I16),
